@@ -1,4 +1,5 @@
 from openai import AsyncOpenAI
+from typing import Any
 
 
 class LLMClient:
@@ -20,3 +21,19 @@ class LLMClient:
         if self._client:
             await self._client.close()
             self._client = None
+
+    # messages is the total context here consisting of user and assistant prompts, vector<pair<string,any>> type, each dict as role and msg value
+    async def chat_completion(self,
+                              messages: list[dict[str, Any]],
+                              stream: bool = True):
+        client = self.get_client()
+        if stream:
+            self._stream_response()
+        else:
+            self._non_stream_response()
+
+    async def _stream_response(self):
+        pass
+
+    async def _non_stream_response(self, client: AsyncOpenAI):
+        pass
