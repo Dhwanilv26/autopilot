@@ -49,4 +49,8 @@ class LLMClient:
                                    kwargs: dict[str, Any]):
         # spreading the kwargs like ... in js
         response = await client.chat.completions.create(**kwargs)
-        print(response)
+        choice = response.choices[0]
+        message = choice.message
+        text = None
+        if message.content:
+            text =
