@@ -1,5 +1,5 @@
 from openai import AsyncOpenAI
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from client.response import EventType, StreamEvent, TextDelta, TokenUsage
 
@@ -30,7 +30,7 @@ class LLMClient:
     # to get a response from an llm, directly call this method only (abstracting openais chat completion method)
     async def chat_completion(self,
                               messages: list[dict[str, Any]],
-                              stream: bool = True):
+                              stream: bool = True) -> AsyncGenerator[StreamEvent, None]:
         client = self.get_client()
         # msgs,stream sab aa gaya kwargs mai
         kwargs = {
@@ -41,7 +41,11 @@ class LLMClient:
         if stream:
             await self._stream_response()
         else:
-            await self._non_stream_response(client, kwargs)
+            event = await self._non_stream_response(client, kwargs)
+            yield event  # return partially, send control back to main.py, comeback here and complete the rest of the data
+            # for non streaming response, yield only 1 event
+
+        return
 
     async def _stream_response(self):
         pass
