@@ -4,6 +4,7 @@ from typing import Any
 
 class LLMClient:
     def __init__(self) -> None:
+        # initialising the client first
         # client is a private variable, can have only 2 types asyncopenai or none, = is the default value
         self._client: AsyncOpenAI | None = None
 
@@ -23,17 +24,29 @@ class LLMClient:
             self._client = None
 
     # messages is the total context here consisting of user and assistant prompts, vector<pair<string,any>> type, each dict as role and msg value
+
+    # to get a response from an llm, directly call this method only (abstracting openais chat completion method)
     async def chat_completion(self,
                               messages: list[dict[str, Any]],
                               stream: bool = True):
         client = self.get_client()
+        # msgs,stream sab aa gaya kwargs mai
+        kwargs = {
+            "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+            "messages": messages,
+            "stream": stream
+        }
         if stream:
-            self._stream_response()
+            await self._stream_response()
         else:
-            self._non_stream_response()
+            await self._non_stream_response(client, kwargs)
 
     async def _stream_response(self):
         pass
 
-    async def _non_stream_response(self, client: AsyncOpenAI):
-        pass
+    async def _non_stream_response(self,
+                                   client: AsyncOpenAI,
+                                   kwargs: dict[str, Any]):
+        # spreading the kwargs like ... in js
+        response = await client.chat.completions.create(**kwargs)
+        print(response)
