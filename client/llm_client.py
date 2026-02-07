@@ -1,6 +1,8 @@
 from openai import AsyncOpenAI
 from typing import Any
 
+from client.response import EventType, StreamEvent, TextDelta, TokenUsage
+
 
 class LLMClient:
     def __init__(self) -> None:
@@ -46,11 +48,27 @@ class LLMClient:
 
     async def _non_stream_response(self,
                                    client: AsyncOpenAI,
-                                   kwargs: dict[str, Any]):
+                                   kwargs: dict[str, Any]) -> StreamEvent:
         # spreading the kwargs like ... in js
         response = await client.chat.completions.create(**kwargs)
         choice = response.choices[0]
         message = choice.message
-        text = None
+        text_delta = None
         if message.content:
-            text =
+            text_delta = TextDelta(content=message.content)
+
+            usage = None
+        if response.usage:
+            usage = TokenUsage(
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+                cached_tokens=response.prompt_token_details.cached_tokens
+            )
+
+        return StreamEvent(
+            type=EventType.MESSAGE_COMPLETE,  # cant have event of text-delta, the msg received is the final
+            text_delta=text_delta,
+            finish_reason=choice.finish_reason,
+            usage=usage  # type: ignore
+        )
