@@ -4,7 +4,7 @@ import asyncio
 import click
 
 class CLI:
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
     def run_single(self):

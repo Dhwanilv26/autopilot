@@ -13,12 +13,11 @@ class TextDelta:
         return self.content
 
 
-@dataclass
 # eventtype is a child class of str and enum, () with classes is used for inheritance
 class EventType(str, Enum):  # str pehle hai to .value nai likhna padega
-    TEXT_DELTA = "text_delta" 
-    MESSAGE_COMPLETE = "message_complete" 
-    ERROR = "error" 
+    TEXT_DELTA = "text_delta"
+    MESSAGE_COMPLETE = "message_complete"
+    ERROR = "error"
 
 
 @dataclass
