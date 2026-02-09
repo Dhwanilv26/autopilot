@@ -1,18 +1,36 @@
+from typing import Any
 from client.llm_client import LLMClient
 import asyncio
+import click
+
+class CLI:
+    def __init__(self) -> None:
+        pass
+
+    def run_single(self):
+        pass
 
 
-async def main():
+async def run(messages: list[dict[str, Any]]):
     client = LLMClient()
-    messages = [{"role": "user", "content": "what is up"}]
+    async for event in client.chat_completion(messages, True):
+        print(event)
+
+
+# entire fn wrapped up in a cli thing
+@click.command()
+@click.argument("prompt", required=False)
+def main(
+    prompt: str | None,
+):
+    print(prompt)
+    client = LLMClient()
+    messages = [{"role": "user", "content": prompt}]
     # yield value in the event variable
 
     # used async for instead of await to process the response in chunks and not wait till the entire response, and chat_completion returns an async generator
-    async for event in client.chat_completion(messages, stream=True):
-        print(event)
-
+    asyncio.run(run(messages))
     print("done")
 
 
-# python is a synchronous language, we need asyncio for the main function to run
-asyncio.run(main())
+main()
