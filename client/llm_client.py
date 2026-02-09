@@ -1,6 +1,8 @@
-from openai import AsyncOpenAI
+import asyncio
+import random
+from openai import APIConnectionError, APIError, AsyncOpenAI
 from typing import Any, AsyncGenerator
-
+from openai import RateLimitError
 from client.response import EventType, StreamEvent, TextDelta, TokenUsage
 
 
@@ -9,6 +11,7 @@ class LLMClient:
         # initialising the client first
         # client is a private variable, can have only 2 types asyncopenai or none, = is the default value
         self._client: AsyncOpenAI | None = None
+        self._max_retries: int = 3
 
     def get_client(self) -> AsyncOpenAI:
         if self._client is None:
@@ -31,6 +34,7 @@ class LLMClient:
     async def chat_completion(self,
                               messages: list[dict[str, Any]],
                               stream: bool = True) -> AsyncGenerator[StreamEvent, None]:
+        # rate limiting till 3 retries for both streamed and non streamed responses
         client = self.get_client()
         # msgs,stream sab aa gaya kwargs mai
         kwargs = {
@@ -38,20 +42,62 @@ class LLMClient:
             "messages": messages,
             "stream": stream
         }
-        if stream:
-            async for event in self._stream_response(client, kwargs):
-                yield event
+        for attempt in range(self._max_retries+1):
+            try:
+                if stream:
+                    async for event in self._stream_response(client, kwargs):
+                        yield event
 
-        else:
-            event = await self._non_stream_response(client, kwargs)
-            yield event  # return partially, send control back to main.py, comeback here and complete the rest of the data
-            # for non streaming response, yield only 1 event
+                else:
+                    event = await self._non_stream_response(client, kwargs)
+                    yield event  # return partially, send control back to main.py, comeback here and complete the rest of the data
+                    # for non streaming response, yield only 1 event
 
-        return
+                # return hai isiliye 1 sucessful baari mai sab aa gya varna except block mai jaata
+                return
+
+            except RateLimitError as e:
+                if attempt < self._max_retries:
+                    # implementing exponential backoff, to reduce server load and setting the thread to sleep
+                    wait_time = 2**attempt  # 2^attempt
+                    await asyncio.sleep(wait_time+random.random())
+
+                else:
+                    yield StreamEvent(
+                        type=EventType.ERROR,
+                        error=f"Rate limit exceeded : {e}"
+                    )
+                    return  # not allowing user to send prompts, agar koi bhi error aa gya in 3 mai se , else statement mai return likha hai isilye
+
+            # agar api se connect karte time error aaya to, like network issue etc
+            except APIConnectionError as e:
+                if attempt < self._max_retries:
+                    wait_time = 2**attempt
+                    await asyncio.sleep(wait_time+random.random())
+
+                else:
+                    yield StreamEvent(
+                        type=EventType.ERROR,
+                        error=f"Connection error : {e}"
+                    )
+                    return
+            # agar api mai khud error aa gaya to
+            except APIError as e:
+                if attempt < self._max_retries:
+                    wait_time = 2**attempt
+                    await asyncio.sleep(wait_time+random.random())
+
+                else:
+                    yield StreamEvent(
+                        type=EventType.ERROR,
+                        error=f"API error : {e}"
+                    )
+                    return
 
     async def _stream_response(self,
                                client: AsyncOpenAI,
                                kwargs: dict[str, Any]) -> AsyncGenerator[StreamEvent, None]:
+
         response = await client.chat.completions.create(**kwargs)
 
         usage: TokenUsage | None = None
