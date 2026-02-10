@@ -4,9 +4,12 @@ from typing import Any
 
 
 class AgentEventType(str, Enum):
+    #agent lifecycle, this maps it to fastapi or flask endpoints, making it api safe
     AGENT_START = "agent_start"
     AGENT_END = "agent_end"
     AGENT_ERROR = "agent_error"
+
+    #text streaming
     TEXT_DELTA = "text_delta"
     TEXT_COMPLETE = "text_complete"
 

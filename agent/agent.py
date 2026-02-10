@@ -1,5 +1,7 @@
 from typing import AsyncGenerator
 
+from agent.events import AgentEvent
+
 class Agent:
     def __init__(self):
         pass
