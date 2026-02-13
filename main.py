@@ -1,19 +1,24 @@
 import asyncio
+from typing import Any
 import click
 
 from agent.agent import Agent
 from agent.events import AgentEventType
 from client.llm_client import LLMClient
+from ui.tui import TUI, get_console
+
+console = get_console()
 
 
 class CLI:
     def __init__(self):
         self.agent: Agent | None = None
+        self.tui = TUI(console)
 
     async def run_single(self, message: str):
         async with Agent() as agent:
             self.agent = agent
-            self._process_message(message)
+            await self._process_message(message)
 
     async def _process_message(self, message: str) -> str | None:
         if not self.agent:
@@ -22,11 +27,7 @@ class CLI:
         async for event in self.agent.run(message):
             if event.type == AgentEventType.TEXT_DELTA:
                 content = event.data.get("content", "")
-
-
-async def run(messages: list[dict[str, Any]]):
-
-    # entire fn wrapped up in a cli thing
+                self.tui.stream_assistant_delta(content)
 
 
 @click.command()
