@@ -11,6 +11,7 @@ class Agent:
         self.client = LLMClient()
 
     async def run(self, message: str):
+        final_response = None
         yield AgentEvent.agent_start(message)
         # todo: add user message to context
 
@@ -26,11 +27,15 @@ class Agent:
         messages = [{"role": "user", "content": "Hey, what is going on"}]
         response_text = ""
 
+        if not self.client:
+            raise RuntimeError("agent must be used in a 'async with' block")
+
         async for event in self.client.chat_completion(messages, True):
             if event.type == StreamEventType.TEXT_DELTA:
-                content = event.text_delta.content
-                response_text += content
-                yield AgentEvent.text_delta(content)
+                if event.text_delta:
+                    content = event.text_delta.content
+                    response_text += content
+                    yield AgentEvent.text_delta(content)
 
             elif event.type == StreamEventType.ERROR:
                 yield AgentEvent.agent_end(event.error or "Unknown error occured.")
