@@ -3,7 +3,7 @@ import random
 from openai import APIConnectionError, APIError, AsyncOpenAI
 from typing import Any, AsyncGenerator
 from openai import RateLimitError
-from client.response import EventType, StreamEvent, TextDelta, TokenUsage
+from client.response import StreamEventType, StreamEvent, TextDelta, TokenUsage
 
 
 class LLMClient:
@@ -64,7 +64,7 @@ class LLMClient:
 
                 else:
                     yield StreamEvent(
-                        type=EventType.ERROR,
+                        type=StreamEventType.ERROR,
                         error=f"Rate limit exceeded : {e}"
                     )
                     return  # not allowing user to send prompts, agar koi bhi error aa gya in 3 mai se , else statement mai return likha hai isilye
@@ -77,7 +77,7 @@ class LLMClient:
 
                 else:
                     yield StreamEvent(
-                        type=EventType.ERROR,
+                        type=StreamEventType.ERROR,
                         error=f"Connection error : {e}"
                     )
                     return
@@ -89,7 +89,7 @@ class LLMClient:
 
                 else:
                     yield StreamEvent(
-                        type=EventType.ERROR,
+                        type=StreamEventType.ERROR,
                         error=f"API error : {e}"
                     )
                     return
@@ -125,12 +125,12 @@ class LLMClient:
             # printing only the chunks having content
             if delta.content:
                 yield StreamEvent(
-                    type=EventType.TEXT_DELTA,
+                    type=StreamEventType.TEXT_DELTA,
                     text_delta=TextDelta(delta.content)
                 )
         # then yielding the final chunk with the usage, without the text delta
         yield StreamEvent(
-            type=EventType.MESSAGE_COMPLETE,
+            type=StreamEventType.MESSAGE_COMPLETE,
             finish_reason=finish_reason,
             usage=usage
         )
@@ -156,7 +156,7 @@ class LLMClient:
             )
 
         return StreamEvent(
-            type=EventType.MESSAGE_COMPLETE,  # cant have event of text-delta, the msg received is the final
+            type=StreamEventType.MESSAGE_COMPLETE,  # cant have event of text-delta, the msg received is the final
             text_delta=text_delta,
             finish_reason=choice.finish_reason,
             usage=usage  # type: ignore

@@ -13,8 +13,8 @@ class TextDelta:
         return self.content
 
 
-# eventtype is a child class of str and enum, () with classes is used for inheritance
-class EventType(str, Enum):  # str pehle hai to .value nai likhna padega
+# Streameventtype is a child class of str and enum, () with classes is used for inheritance
+class StreamEventType(str, Enum):  # str pehle hai to .value nai likhna padega
     TEXT_DELTA = "text_delta"
     MESSAGE_COMPLETE = "message_complete"
     ERROR = "error"
@@ -38,7 +38,7 @@ class TokenUsage:
 
 @dataclass
 class StreamEvent:
-    type: EventType
+    type: StreamEventType
     text_delta: TextDelta | None = None
     error: str | None = None
     finish_reason: str | None = None
