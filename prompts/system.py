@@ -1,23 +1,23 @@
 from datetime import datetime
 import platform
-from config.config import Config
-from tools.base import Tool
+# from config.config import Config
+# from tools.base import Tool
 
 
 def get_system_prompt(
-    config: Config,
-    user_memory: str | None = None,
-    tools: list[Tool] | None = None,
+    # config: Config,
+    # user_memory: str | None = None,
+    # tools: list[Tool] | None = None,
 ) -> str:
     parts = []
 
     # Identity and role
     parts.append(_get_identity_section())
     # Environment
-    parts.append(_get_environment_section(config))
+    # parts.append(_get_environment_section(config))
 
-    if tools:
-        parts.append(_get_tool_guidelines_section(tools))
+    # if tools:
+    # parts.append(_get_tool_guidelines_section(tools))
 
     # AGENTS.md spec
     parts.append(_get_agents_md_section())
@@ -25,16 +25,16 @@ def get_system_prompt(
     # Security guidelines
     parts.append(_get_security_section())
 
-    if config.developer_instructions:
-        parts.append(_get_developer_instructions_section(config.developer_instructions))
+    # if config.developer_instructions:
+    #     parts.append(_get_developer_instructions_section(config.developer_instructions))
 
-    if config.user_instructions:
-        parts.append(_get_user_instructions_section(config.user_instructions))
+    # if config.user_instructions:
+    #     parts.append(_get_user_instructions_section(config.user_instructions))
 
-    if user_memory:
-        parts.append(_get_memory_section(user_memory))
-    # Operational guidelines
-    parts.append(_get_operational_section())
+    # if user_memory:
+    #     parts.append(_get_memory_section(user_memory))
+    # # Operational guidelines
+    # parts.append(_get_operational_section())
 
     return "\n\n".join(parts)
 
@@ -54,7 +54,7 @@ Your capabilities:
 You are pair programming with the user to help them accomplish their goals. You should be proactive, thorough and focused on delivering high-quality results."""
 
 
-def _get_environment_section(config: Config) -> str:
+def _get_environment_section(config) -> str:
     """Generate the environment section."""
     now = datetime.now()
     os_info = f"{platform.system()} {platform.release()}"
@@ -223,7 +223,7 @@ The following information has been stored from previous interactions:
 Use this information to personalize your responses and maintain consistency."""
 
 
-def _get_tool_guidelines_section(tools: list[Tool]) -> str:
+def _get_tool_guidelines_section(tools) -> str:
     """Generate tool usage guidelines."""
 
     regular_tools = [t for t in tools if not t.name.startswith("subagent_")]
