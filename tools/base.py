@@ -43,6 +43,13 @@ class ToolResult:
                    output=output,
                    error=error)
 
+    @classmethod
+    def success_result(cls, output: str = "", **kwargs: Any):
+        return cls(success=True,
+                   output=output,
+                   error=None,
+                   **kwargs)
+
 
 class Tool(abc.ABC):
     name: str = "base_tool"
