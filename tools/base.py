@@ -1,10 +1,11 @@
 from __future__ import annotations
-import abc  # to create an abstract class in python
+import abc  # to create an abstract base class in python
 from enum import Enum
 from typing import Any
 from pydantic import BaseModel, ValidationError
 from dataclasses import dataclass, field
 from pathlib import Path
+from pydantic.json_schema import model_json_schema
 
 
 class ToolKind(str, Enum):
@@ -95,3 +96,35 @@ class Tool(abc.ABC):
         return ToolConfirmation(tool_name=self.name,
                                 params=invocation.params,
                                 description=f"Execute {self.name}")
+
+    # converting the pydantic schema to a dict so that it can be easily passed into kwargs in llmclient.py
+    def to_openai_schema(self) -> dict[str, Any]:
+        schema = self.schema
+
+        if isinstance(schema, type) and issubclass(schema, BaseModel):
+            json_schema = model_json_schema(schema, mode="serialization")
+
+            return {
+                "name": self.name,
+                "description": self.description,
+                "parameters": {
+                    "type": "object",
+                    # eg of properties -> location, city,state
+                    "properties": json_schema.get("properties", []),
+                    # location of city is required to ge the weather
+                    "required": json_schema.get("required", [])
+                }
+            }
+
+        if isinstance(schema, dict):
+            result = {"name": self.name,
+                      "description": self.description
+                      }
+            if "parameters" in schema:
+                result["parameters"] = schema["parameters"]
+            else:
+                result["parameters"] = schema
+
+            return result
+
+        raise ValueError(f"invalid schema type for tool {self.name} : {type(schema)} ")
