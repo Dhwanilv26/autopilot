@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 from tools.base import Tool, ToolInvocation, ToolKind, ToolResult
 from utils.paths import is_binary_file, resolve_path
-from utils.text import count_tokens
+from utils.text import count_tokens, truncate_text
 
 
 class ReadFileParams(BaseModel):
@@ -59,36 +59,70 @@ class ReadFileTool(Tool):
                 f"Cannot read binary file : {path.name} ({size_str})"
                 f"This tool only reads text files."
             )
-
         try:
-            content = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            content = path.read_text(encoding="latin-1")
 
-        lines = content.splitlines()
-        total_lines = len(lines)
+            try:
+                content = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                content = path.read_text(encoding="latin-1")
 
-        if total_lines == 0:
+            lines = content.splitlines()
+            total_lines = len(lines)
+
+            if total_lines == 0:
+                return ToolResult.success_result(
+                    "File is empty",
+                    metadata={"lines": 0}
+                )
+            # lines is an array here, so using indexes here
+            start_idx = max(0, params.offset-1)
+
+            if params.limit is not None:
+                end_idx = min(start_idx + params.limit, total_lines)
+            else:
+                end_idx = total_lines
+
+            # start_idx is 0 based, end_idx is 1 based, so no need to worry about the slice operator
+            selected_lines = lines[start_idx:end_idx]
+            formatted_lines = []
+
+            for i, line in enumerate(selected_lines, start=start_idx):
+                # editor like feel (10 | print("hello world"))
+                # :6 used for right aligning numbers before |
+                formatted_lines.append(f"{i:6}|{line}")
+
+            output = "\n".join(formatted_lines)
+            token_count = count_tokens(output, model)
+
+            truncated = False
+
+            if token_count > self.MAX_OUTPUT_TOKENS:
+                output = truncate_text(
+                    text=output,
+                    model=model,
+                    max_tokens=self.MAX_OUTPUT_TOKENS,
+                    suffix=f"\n... [truncated {total_lines} total lines]",
+                    preserve_lines=False
+                )
+                truncated = True
+            metadata_lines = []
+            if start_idx > 0 or end_idx < total_lines:
+                metadata_lines.append(
+                    f"showing lines {start_idx+1} -{end_idx} of {total_lines} {total_lines} lines")
+
+            if metadata_lines:
+                header = " | ".join(metadata_lines) + "\n\n"
+                output = header+output
+
             return ToolResult.success_result(
-                "File is empty",
-                metadata={"lines": 0}
+                output=output,
+                truncated=truncated,
+                metadata={
+                    "path": str(path),
+                    "total_lines": total_lines,
+                    "shown_start": start_idx+1,
+                    "shown_end": end_idx
+                }
             )
-        # lines is an array here, so using indexes here
-        start_idx = max(0, params.offset-1)
-
-        if params.limit is not None:
-            end_idx = min(start_idx + params.limit, total_lines)
-        else:
-            end_idx = total_lines
-
-        selected_lines = lines[start_idx:end_idx]
-        formatted_lines = []
-
-        for i, line in enumerate(selected_lines, start=start_idx):
-            formatted_lines.append(f"{i:6}|{line}")
-
-        output = "\n".join(formatted_lines)
-        token_count = count_tokens(output)
-
-        if token_count > self.MAX_OUTPUT_TOKENS:
-            output =
+        except Exception as e:
+            return ToolResult.error_result(f"Failed to read file:{e}")

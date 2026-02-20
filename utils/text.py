@@ -27,6 +27,7 @@ def estimate_tokens(text: str) -> int:
 def truncate_text(text: str,
                   model: str,
                   max_tokens: int,
+                  # default or fallback suffix, original to tool file se hi aayega
                   suffix: str = "\n... [truncated]",
                   preserve_lines: bool = True):
     current_tokens = count_tokens(text, model)
@@ -38,16 +39,18 @@ def truncate_text(text: str,
     target_tokens = max_tokens-suffix_tokens
 
     if target_tokens <= 0:
+        # to return the suffix without leading and trailing characters
         return suffix.strip()
 
     if preserve_lines:
+        # cuts the text at the farthest new line possible
         return _truncate_by_lines(text, target_tokens, suffix, model)
     else:
+        # cuts the text at any random character
         return _truncate_by_chars(text, target_tokens, suffix, model)
 
 
 def _truncate_by_lines(text: str, target_tokens: int, suffix: str, model: str) -> str:
-    """Truncate text at line boundaries"""
 
     lines = text.split("\n")
     result_lines: list[str] = []
@@ -61,7 +64,7 @@ def _truncate_by_lines(text: str, target_tokens: int, suffix: str, model: str) -
         current_tokens += line_tokens
 
     if not result_lines:
-        return _truncate_by_lines(text, target_tokens, suffix, model)
+        return _truncate_by_chars(text, target_tokens, suffix, model)
 
     return "\n".join(result_lines)+suffix
 
