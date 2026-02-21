@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any
 from tools.base import Tool, ToolInvocation, ToolResult
 import logging
+# __name__ = name of the current module
 logger = logging.getLogger(__name__)
 
 
@@ -11,7 +12,7 @@ class ToolRegistry:
 
     def register(self, tool: Tool) -> None:
         if tool.name in self._tools:
-            logging.warning(f"overwriting existing tool: {tool.name}")
+            logger.warning(f"overwriting existing tool: {tool.name}")
 
         self._tools[tool.name] = tool
         logger.debug(f"Registered tool: {tool.name}")
@@ -30,7 +31,7 @@ class ToolRegistry:
 
     def get_tools(self) -> list[Tool]:
         tools: list[Tool] = []
-
+        # values -> only the V in [K,V] pair
         for tool in self._tools.values():
             tools.append(tool)
         return tools
@@ -54,5 +55,5 @@ class ToolRegistry:
                     "validation_errors": validation_errors})
 
         invocation = ToolInvocation(params=params, cwd=cwd)
-        
-        await tool.execute()
+
+        await tool.execute(invocation)
