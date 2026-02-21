@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Any
 from tools.base import Tool, ToolInvocation, ToolResult
 import logging
+
+from tools.builtin import ReadFileTool, get_all_builtin_tools
 # __name__ = name of the current module
 logger = logging.getLogger(__name__)
 
@@ -56,4 +58,20 @@ class ToolRegistry:
 
         invocation = ToolInvocation(params=params, cwd=cwd)
 
-        await tool.execute(invocation)
+        try:
+            await tool.execute(invocation)
+        except Exception as e:
+            logger.exception(f"tool {name} raised unexpected error")
+            return ToolResult.error_result(
+                f"internal error: {str(e)}",
+                metadata={"tool_name", name}
+            )
+
+
+def create_default_registry() -> ToolRegistry:
+    registry = ToolRegistry()
+
+    for tool_class in get_all_builtin_tools():
+        registry.register(tool_class())
+
+    return registry
