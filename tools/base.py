@@ -36,6 +36,7 @@ class ToolResult:
     output: str
     error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    # field is only used for dataclasses, not for random objects, outside dataclass used {} only to initialize dicts
 
     truncated: bool = False
 
@@ -118,6 +119,7 @@ class Tool(abc.ABC):
         schema = self.schema
 
         if isinstance(schema, type) and issubclass(schema, BaseModel):
+            # now converting the schema to an actual class instance here
             json_schema = model_json_schema(schema, mode="serialization")
 
             return {
@@ -133,14 +135,10 @@ class Tool(abc.ABC):
             }
 
         if isinstance(schema, dict):
-            result = {"name": self.name,
-                      "description": self.description
-                      }
-            if "parameters" in schema:
-                result["parameters"] = schema["parameters"]
-            else:
-                result["parameters"] = schema
-
-            return result
+            return {
+                "name": self.name,
+                "description": self.description,
+                "parameters": schema.get("parameters", schema)
+            }
 
         raise ValueError(f"invalid schema type for tool {self.name} : {type(schema)} ")

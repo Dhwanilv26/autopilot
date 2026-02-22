@@ -26,7 +26,10 @@ class ReadFileTool(Tool):
     )
     kind = ToolKind.READ
 
-    schema = ReadFileParams
+    # schema is a property in the basetool class, so it should also be implemented as a property in the subsequent child classes too
+    @property
+    def schema(self):
+        return ReadFileParams # returning just the type of the class, exactly what is required in the basetool
 
     MAX_FILE_SIZE = 1024*1024*10  # 10 MB MAX
     MAX_OUTPUT_TOKENS = 250000

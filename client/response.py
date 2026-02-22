@@ -1,6 +1,6 @@
 # to wait till the entire file is loaded, and wait for the tokenusage class to be initialized
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import json
 from typing import Any
@@ -55,7 +55,7 @@ class ToolCallDelta:
 class ToolCall:
     call_id: str
     name: str | None = None
-    arguments: str = ""
+    arguments: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

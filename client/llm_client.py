@@ -159,6 +159,8 @@ class LLMClient:
                 for tool_call_delta in delta.tool_calls:
                     idx = tool_call_delta.index
 
+                    # initializing the custom dict tool_calls to store the mapping of the function number and its params
+
                     if idx not in tool_calls:
                         tool_calls[idx] = {
                             "id": tool_call_delta.id or "",
@@ -168,6 +170,7 @@ class LLMClient:
 
                         if tool_call_delta.function:
                             if tool_call_delta.function.name:
+                                # updating custom dict to include the name for the current tool index
                                 tool_calls[idx]["name"] = tool_call_delta.function.name
                                 yield StreamEvent(
                                     type=StreamEventType.TOOL_CALL_START,
@@ -176,13 +179,13 @@ class LLMClient:
                                     (call_id=tool_calls[idx]["id"],
                                      name=tool_call_delta.function.name)
                                 )
-
+                        # this is from the llm response schema
                         if tool_call_delta.function.arguments:
-                            tool_calls["idx"]["arguments"] += tool_call_delta.function.arguments
+                            # this is from the custom tool_call dict
+                            tool_calls[idx]["arguments"] += tool_call_delta.function.arguments
                             yield StreamEvent(
                                 type=StreamEventType.TOOL_CALL_DELTA,
                                 tool_call_delta=ToolCallDelta
-                                # N-d array , same level par hi hai index and id
                                 (call_id=tool_calls[idx]["id"],
                                  name=tool_call_delta.function.name,
                                  arguments_delta=tool_call_delta.function.arguments)
@@ -194,7 +197,7 @@ class LLMClient:
                         tool_call=ToolCall(
                             call_id=tc["id"],
                             name=tc["name"],
-                            arguments=parse_tool_call_arguments(tc.function.arguments))
+                            arguments=parse_tool_call_arguments(tc["arguments"]))
                     )
 
         yield StreamEvent(
