@@ -39,7 +39,8 @@ class Agent:
 
         async for event in self.client.chat_completion(
                 messages=self.context_manager.get_messages(),
-                tools=tool_schemas if tool_schemas else None
+                tools=tool_schemas if tool_schemas else None,
+                stream=True
         ):
 
             if event.type == StreamEventType.TEXT_DELTA:

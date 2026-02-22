@@ -3,7 +3,7 @@ import random
 from openai import APIConnectionError, APIError, AsyncOpenAI
 from typing import Any, AsyncGenerator
 from openai import RateLimitError
-from client.response import StreamEventType, StreamEvent, TextDelta, TokenUsage, ToolCallDelta
+from client.response import StreamEventType, StreamEvent, TextDelta, TokenUsage, ToolCall, ToolCallDelta, parse_tool_call_arguments
 
 
 class LLMClient:
@@ -125,6 +125,9 @@ class LLMClient:
 
         usage: TokenUsage | None = None
         finish_reason: str | None = None
+        # each index -> seq of tool call and then inner dict is for params passed for each tool call
+        tool_calls: dict[int, dict[str, Any]] = {}
+
         async for chunk in response:
 
             if hasattr(chunk, "usage") and chunk.usage:
@@ -153,21 +156,47 @@ class LLMClient:
                 )
 
             if delta.tool_calls:
-                for tc in delta.tool_calls:
+                for tool_call_delta in delta.tool_calls:
+                    idx = tool_call_delta.index
 
-                    id_to_use = tc.id or f"call_{tc.index}"
+                    if idx not in tool_calls:
+                        tool_calls[idx] = {
+                            "id": tool_call_delta.id or "",
+                            "name": "",
+                            "arguments": ""
+                        }
 
+                        if tool_call_delta.function:
+                            if tool_call_delta.function.name:
+                                tool_calls[idx]["name"] = tool_call_delta.function.name
+                                yield StreamEvent(
+                                    type=StreamEventType.TOOL_CALL_START,
+                                    tool_call_delta=ToolCallDelta
+                                    # N-d array , same level par hi hai index and id
+                                    (call_id=tool_calls[idx]["id"],
+                                     name=tool_call_delta.function.name)
+                                )
+
+                        if tool_call_delta.function.arguments:
+                            tool_calls["idx"]["arguments"] += tool_call_delta.function.arguments
+                            yield StreamEvent(
+                                type=StreamEventType.TOOL_CALL_DELTA,
+                                tool_call_delta=ToolCallDelta
+                                # N-d array , same level par hi hai index and id
+                                (call_id=tool_calls[idx]["id"],
+                                 name=tool_call_delta.function.name,
+                                 arguments_delta=tool_call_delta.function.arguments)
+                            )
+
+                for idx, tc in tool_calls.items():
                     yield StreamEvent(
-                        type=StreamEventType.TOOL_CALL,
-                        tool_call=ToolCallDelta(
-                            name=tc.function.name,
-                            arguments=tc.function.arguments,
-                            call_id=id_to_use
-                        )
+                        type=StreamEventType.TOOL_CALL_COMPLETE,
+                        tool_call=ToolCall(
+                            call_id=tc["id"],
+                            name=tc["name"],
+                            arguments=parse_tool_call_arguments(tc.function.arguments))
                     )
 
-            print(delta.tool_calls)
-        # then yielding the final chunk with the usage, without the text delta
         yield StreamEvent(
             type=StreamEventType.MESSAGE_COMPLETE,
             finish_reason=finish_reason,
