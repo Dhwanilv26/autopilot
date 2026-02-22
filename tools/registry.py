@@ -3,7 +3,7 @@ from typing import Any
 from tools.base import Tool, ToolInvocation, ToolResult
 import logging
 
-from tools.builtin import ReadFileTool, get_all_builtin_tools
+from tools.builtin import get_all_builtin_tools
 # __name__ = name of the current module
 logger = logging.getLogger(__name__)
 

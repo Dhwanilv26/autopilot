@@ -13,11 +13,25 @@ class TextDelta:
         return self.content
 
 
+@dataclass
+class ToolCallDelta:
+    name: str | None = None
+    arguments: str | None = None
+    call_id: str | None = None
+
+    def __str__(self) -> str:
+        return f"Tool Call: {self.name}({self.arguments})"
+
 # Streameventtype is a child class of str and enum, () with classes is used for inheritance
+
+
 class StreamEventType(str, Enum):  # str pehle hai to .value nai likhna padega
     TEXT_DELTA = "text_delta"
     MESSAGE_COMPLETE = "message_complete"
     ERROR = "error"
+
+    # tool call
+    TOOL_CALL = "tool_call"
 
 
 @dataclass
@@ -40,6 +54,7 @@ class TokenUsage:
 class StreamEvent:
     type: StreamEventType
     text_delta: TextDelta | None = None
+    tool_call: ToolCallDelta | None = None
     error: str | None = None
     finish_reason: str | None = None
     usage: TokenUsage | None = None

@@ -66,5 +66,4 @@ def main(
         if result is None:
             sys.exit(1)
 
-
 main()

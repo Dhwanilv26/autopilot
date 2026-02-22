@@ -5,18 +5,20 @@ from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
 from client.response import StreamEventType
 from context.manager import ContextManager
+from tools.registry import create_default_registry
 
 
 class Agent:
     def __init__(self):
+        # all variables are specific to a session, to avoid memory leaks, context pollution and maintain isolation while focusing concurrency
         self.client = LLMClient()
         self.context_manager = ContextManager()
+        self.tool_registry = create_default_registry()  # ToolRegistry() already called here
 
     async def run(self, message: str):
         final_response = None
         yield AgentEvent.agent_start(message)
         self.context_manager.add_user_message(message)
-        # todo: add user message to context
 
         async for event in self._agentic_loop():
             yield event
@@ -33,7 +35,13 @@ class Agent:
         if not self.client:
             raise RuntimeError("agent must be used in a 'async with' block")
 
-        async for event in self.client.chat_completion(self.context_manager.get_messages(), True):
+        tool_schemas = self.tool_registry.get_schemas()
+
+        async for event in self.client.chat_completion(
+                messages=self.context_manager.get_messages(),
+                tools=tool_schemas if tool_schemas else None
+        ):
+
             if event.type == StreamEventType.TEXT_DELTA:
                 if event.text_delta:
                     content = event.text_delta.content

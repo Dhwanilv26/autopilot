@@ -3,7 +3,7 @@ import random
 from openai import APIConnectionError, APIError, AsyncOpenAI
 from typing import Any, AsyncGenerator
 from openai import RateLimitError
-from client.response import StreamEventType, StreamEvent, TextDelta, TokenUsage
+from client.response import StreamEventType, StreamEvent, TextDelta, TokenUsage, ToolCallDelta
 
 
 class LLMClient:
@@ -28,11 +28,31 @@ class LLMClient:
             await self._client.close()
             self._client = None
 
+    def _build_tools(self, tools: list[dict[str, Any]]):
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get(
+                        "parameters", {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    )
+                }
+            }
+
+            for tool in tools
+        ]
+
     # messages is the total context here consisting of user and assistant prompts, vector<pair<string,any>> type, each dict as role and msg value
 
     # to get a response from an llm, directly call this method only (abstracting openais chat completion method)
     async def chat_completion(self,
                               messages: list[dict[str, Any]],
+                              tools: list[dict[str, Any]] | None = None,
                               stream: bool = True) -> AsyncGenerator[StreamEvent, None]:
         # rate limiting till 3 retries for both streamed and non streamed responses
         client = self.get_client()
@@ -42,6 +62,9 @@ class LLMClient:
             "messages": messages,
             "stream": stream
         }
+        if tools:
+            kwargs["tools"] = self._build_tools(tools)
+            kwargs["tool_choice"] = "auto"
         for attempt in range(self._max_retries+1):
             try:
                 if stream:
@@ -128,6 +151,22 @@ class LLMClient:
                     type=StreamEventType.TEXT_DELTA,
                     text_delta=TextDelta(delta.content)
                 )
+
+            if delta.tool_calls:
+                for tc in delta.tool_calls:
+
+                    id_to_use = tc.id or f"call_{tc.index}"
+
+                    yield StreamEvent(
+                        type=StreamEventType.TOOL_CALL,
+                        tool_call=ToolCallDelta(
+                            name=tc.function.name,
+                            arguments=tc.function.arguments,
+                            call_id=id_to_use
+                        )
+                    )
+
+            print(delta.tool_calls)
         # then yielding the final chunk with the usage, without the text delta
         yield StreamEvent(
             type=StreamEventType.MESSAGE_COMPLETE,
