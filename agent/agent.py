@@ -3,7 +3,7 @@ from typing import AsyncGenerator
 
 from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
-from client.response import StreamEventType
+from client.response import StreamEventType, ToolCall
 from context.manager import ContextManager
 from tools.registry import create_default_registry
 
@@ -37,6 +37,8 @@ class Agent:
 
         tool_schemas = self.tool_registry.get_schemas()
 
+        tool_calls: list[ToolCall] = []
+
         async for event in self.client.chat_completion(
                 messages=self.context_manager.get_messages(),
                 tools=tool_schemas if tool_schemas else None,
@@ -49,6 +51,10 @@ class Agent:
                     response_text += content
                     yield AgentEvent.text_delta(content)
 
+                elif event.type == StreamEventType.TOOL_CALL_COMPLETE:
+                    if event.tool_call:
+                        tool_calls.append(event.tool_call)
+
             elif event.type == StreamEventType.ERROR:
                 yield AgentEvent.agent_end(event.error or "Unknown error occured.")
 
@@ -57,7 +63,15 @@ class Agent:
         if response_text:
             yield AgentEvent.text_complete(response_text)
 
+        for tool_call in tool_calls:
+            yield AgentEvent.tool_call_start(
+                tool_call.call_id,
+                tool_call.name,
+                tool_call.arguments
+            )
+
     # __ is used for reserved keywords and methods in python, aenter is for async enter
+
     async def __aenter__(self) -> Agent:
         return self
 

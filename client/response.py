@@ -54,7 +54,7 @@ class ToolCallDelta:
 @dataclass
 class ToolCall:
     call_id: str
-    name: str | None = None
+    name: str
     arguments: dict[str, Any] = field(default_factory=dict)
 
 
