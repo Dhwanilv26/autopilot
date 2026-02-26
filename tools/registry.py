@@ -41,7 +41,7 @@ class ToolRegistry:
     def get_schemas(self) -> list[dict[str, Any]]:
         return [tool.to_openai_schema() for tool in self.get_tools()]
 
-    async def invoke(self, name: str, params: dict[str, Any], cwd: Path | None):
+    async def invoke(self, name: str, params: dict[str, Any], cwd: Path) -> ToolResult:
         tool = self.get(name)
         if tool is None:
             return ToolResult.error_result(f"unknown tool: {name}",
@@ -59,13 +59,14 @@ class ToolRegistry:
         invocation = ToolInvocation(params=params, cwd=cwd)
 
         try:
-            await tool.execute(invocation)
+            result = await tool.execute(invocation)
         except Exception as e:
             logger.exception(f"tool {name} raised unexpected error")
-            return ToolResult.error_result(
+            result = ToolResult.error_result(
                 f"internal error: {str(e)}",
                 metadata={"tool_name", name}
             )
+        return result
 
 
 def create_default_registry() -> ToolRegistry:

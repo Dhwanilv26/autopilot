@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 from typing import AsyncGenerator
 
 from agent.events import AgentEvent, AgentEventType
@@ -68,6 +69,18 @@ class Agent:
                 tool_call.call_id,
                 tool_call.name,
                 tool_call.arguments
+            )
+
+            result = await self.tool_registry.invoke(
+                tool_call.name,
+                tool_call.arguments,
+                Path.cwd()
+            )
+
+            yield AgentEvent.tool_call_complete(
+                tool_call.call_id,
+                tool_call.name,
+                result
             )
 
     # __ is used for reserved keywords and methods in python, aenter is for async enter
