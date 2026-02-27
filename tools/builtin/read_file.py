@@ -29,7 +29,7 @@ class ReadFileTool(Tool):
     # schema is a property in the basetool class, so it should also be implemented as a property in the subsequent child classes too
     @property
     def schema(self):
-        return ReadFileParams # returning just the type of the class, exactly what is required in the basetool
+        return ReadFileParams  # returning just the type of the class, exactly what is required in the basetool
 
     MAX_FILE_SIZE = 1024*1024*10  # 10 MB MAX
     MAX_OUTPUT_TOKENS = 250000
@@ -95,14 +95,14 @@ class ReadFileTool(Tool):
                 formatted_lines.append(f"{i:6}|{line}")
 
             output = "\n".join(formatted_lines)
-            token_count = count_tokens(output, model)
+            token_count = count_tokens(output, "nvidia/nemotron-3-nano-30b-a3b:free")
 
             truncated = False
 
             if token_count > self.MAX_OUTPUT_TOKENS:
                 output = truncate_text(
                     text=output,
-                    model=model,
+                    model="nvidia/nemotron-3-nano-30b-a3b:free",
                     max_tokens=self.MAX_OUTPUT_TOKENS,
                     suffix=f"\n... [truncated {total_lines} total lines]",
                     preserve_lines=False

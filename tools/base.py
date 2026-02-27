@@ -53,6 +53,16 @@ class ToolResult:
                    output=output,
                    error=None,
                    **kwargs)
+    # this cant be a classmethod, we are using this in an instance so, no cls, no classmethod
+
+    def to_model_output(self) -> str:  # type: ignore
+        # self is needed here because result= toolresult()
+        # and result is a instance here, and not a class member
+        # instances need to be accessed using self only, and not cls
+        if self.success:
+            return self.output
+
+        return f"Error: {self.error}\n\nOutput:\n{self.output}"
 
 
 class Tool(abc.ABC):

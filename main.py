@@ -27,9 +27,10 @@ class CLI:
             return None
 
         assistant_streaming = False
-        final_response = None
+        final_response: str | None = None
 
         async for event in self.agent.run(message):
+            print(event)
             if event.type == AgentEventType.TEXT_DELTA:
                 content = event.data.get("content", "")
                 if not assistant_streaming:
@@ -65,5 +66,6 @@ def main(
         result = asyncio.run(cli.run_single(prompt))
         if result is None:
             sys.exit(1)
+
 
 main()
