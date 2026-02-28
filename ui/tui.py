@@ -8,10 +8,12 @@ from rich.text import Text
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
+from rich.syntax import Syntax
 
 import re  # importing regex
 
 from utils.paths import display_path_rel_to_cwd, resolve_path
+from utils.text import truncate_text
 AGENT_THEME = Theme(
     {
         # General - Using a mix of professional and alert neons
@@ -143,7 +145,7 @@ class TUI:
         self.console.print(panel)
 
     # tuple is for ordered integer and code line
-    def extract_read_file_code(self, text: str) -> tuple[int, str]:
+    def extract_read_file_code(self, text: str) -> tuple[int, str] | None:
         body = text
         header_match = re.match(r"^Showing lines (\d+)-(\d+) of (\d+)\n\n", text)
 
@@ -222,32 +224,48 @@ class TUI:
         )
 
         primary_path = None
+        blocks = []
         if isinstance(metadata, dict) and isinstance(metadata.get("path"), str):
             primary_path = metadata.get("path")
 
         if name == "read_file" and success:
-            start_line, code = self.extract_read_file_code(output)
-            shown_start = 0
-            shown_end = 0
-            total_lines = 0
-            blocks = []
+            if primary_path:
+                result = self.extract_read_file_code(output)
+                if result is None:
+                    start_line, code = None, None
+                else:
+                    start_line, code = result
+                shown_start = 0
+                shown_end = 0
+                total_lines = 0
 
-            if metadata:
-                shown_start = metadata.get("shown_start", 0)
-                shown_end = metadata.get("shown_end", 0)
-                total_lines = metadata.get("total_lines", 0)
-                programming_language = self.guess_language(primary_path)
+                if metadata:
+                    shown_start = metadata.get("shown_start", 0)
+                    shown_end = metadata.get("shown_end", 0)
+                    total_lines = metadata.get("total_lines", 0)
+                    programming_language = self.guess_language(primary_path)
 
-            blocks.append(Text())
+                blocks.append(Text())
 
-            header_parts = [display_path_rel_to_cwd(primary_path, self.cwd)]
-            header_parts.append(" ⏺ ")
+                header_parts = [display_path_rel_to_cwd(primary_path, self.cwd)]
+                header_parts.append(" ⏺ ")
 
-            if shown_start and shown_end and total_lines:
-                header_parts.append(f"lines {shown_start}-{shown_end} of {total_lines}")
+                if shown_start and shown_end and total_lines:
+                    header_parts.append(f"lines {shown_start}-{shown_end} of {total_lines}")
 
-            header_parts = "".join(header_parts)
-            blocks.append(Text(header_parts, style="muted"))
+                header = "".join(header_parts)
+                blocks.append(Text(header, style="muted"))
+                blocks.append(Syntax(
+                    code,
+                    programming_language,
+                    theme="monokai",
+                    line_numbers=True
+                    start_line=start_line
+                    word_wrap=False
+                ))
+            else:
+                truncate_text(output, "", 240)
+                blocks.append(Syntax(output, "text", theme="monokai", word_wrap=False))
 
         # just to display the path in a relative or an absolute way
         display_args = dict(arguments)
