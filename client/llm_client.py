@@ -64,6 +64,7 @@ class LLMClient:
         }
         if tools:
             kwargs["tools"] = self._build_tools(tools)
+            print(kwargs["tools"])
             kwargs["tool_choice"] = "auto"
         for attempt in range(self._max_retries+1):
             try:
@@ -168,30 +169,35 @@ class LLMClient:
                             "arguments": ""
                         }
 
-                        if tool_call_delta.function:
-                            if tool_call_delta.function.name:
-                                # updating custom dict to include the name for the current tool index
-                                tool_calls[idx]["name"] = tool_call_delta.function.name
-                                yield StreamEvent(
-                                    type=StreamEventType.TOOL_CALL_START,
-                                    tool_call_delta=ToolCallDelta
-                                    # N-d array , same level par hi hai index and id
-                                    (call_id=tool_calls[idx]["id"],
-                                     name=tool_call_delta.function.name)
-                                )
-                        # this is from the llm response schema
-                        if tool_call_delta.function.arguments:
-                            # this is from the custom tool_call dict
-                            tool_calls[idx]["arguments"] += tool_call_delta.function.arguments
+                    # always execute tool call functions because in streaming events, we get the chunks in random order so better take all function and argument calls
+
+                    if tool_call_delta.function:
+                        if tool_call_delta.function.name:
+                            # updating custom dict to include the name for the current tool index
+                            tool_calls[idx]["name"] = tool_call_delta.function.name
                             yield StreamEvent(
-                                type=StreamEventType.TOOL_CALL_DELTA,
+                                type=StreamEventType.TOOL_CALL_START,
                                 tool_call_delta=ToolCallDelta
+                                # N-d array , same level par hi hai index and id
                                 (call_id=tool_calls[idx]["id"],
-                                 name=tool_call_delta.function.name,
-                                 arguments_delta=tool_call_delta.function.arguments)
+                                    name=tool_call_delta.function.name)
                             )
+                    # this is from the llm response schema
+                        # print("helloooo")
+                    if tool_call_delta.function and tool_call_delta.function.arguments:
+                        # this is from the custom tool_call dict
+
+                        tool_calls[idx]["arguments"] += tool_call_delta.function.arguments
+                        yield StreamEvent(
+                            type=StreamEventType.TOOL_CALL_DELTA,
+                            tool_call_delta=ToolCallDelta
+                            (call_id=tool_calls[idx]["id"],
+                                name=tool_call_delta.function.name,
+                                arguments_delta=tool_call_delta.function.arguments)
+                        )
 
         for idx, tc in tool_calls.items():
+
             yield StreamEvent(
                 type=StreamEventType.TOOL_CALL_COMPLETE,
                 tool_call=ToolCall(
@@ -211,6 +217,7 @@ class LLMClient:
                                    kwargs: dict[str, Any]) -> StreamEvent:
         # spreading the kwargs like ... in js
         response = await client.chat.completions.create(**kwargs)
+        print("raw response", response)
         choice = response.choices[0]
         message = choice.message
         text_delta = None
