@@ -9,7 +9,9 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import box
 
-from utils.paths import resolve_path
+import re  # importing regex
+
+from utils.paths import display_path_rel_to_cwd, resolve_path
 AGENT_THEME = Theme(
     {
         # General - Using a mix of professional and alert neons
@@ -123,7 +125,136 @@ class TUI:
         for key in ("path", "cwd"):
             val = display_args.get(key)  # main.py
             if isinstance(val, str) and self.cwd:
-                display_args[key] = str(resolve_path(val, self.cwd))
+                display_args[key] = str(display_path_rel_to_cwd(Path(val), self.cwd))
+
+        # for a bordered box around everything
+        panel = Panel(
+            self.render_arguments_table(name, arguments) if display_args else Text(
+                "(no args)", style="muted"),
+            title=title,
+            title_align="left",
+            subtitle=Text("running", style="muted"),
+            subtitle_align="right",
+            box=box.ROUNDED,
+            border_style=border_style,
+            padding=(1, 2)
+        )
+        self.console.print()
+        self.console.print(panel)
+
+    # tuple is for ordered integer and code line
+    def extract_read_file_code(self, text: str) -> tuple[int, str]:
+        body = text
+        header_match = re.match(r"^Showing lines (\d+)-(\d+) of (\d+)\n\n", text)
+
+        # stripping body to contain content after header
+        if header_match:
+            body = text[header_match.end():]
+
+        code_lines: list[str] = []
+        start_line: int | None = None
+
+        for line in body.splitlines():
+            # 1 | def main() (eg), remember that indentation matters too
+            m = re.match(r"^\s*(\d+)\|(.*)$", line)
+            if not m:
+                return None
+            line_no = int(m.group(1))
+            if start_line is None:
+                start_line = line_no
+            code_lines.append(m.group(2))
+
+        if start_line is None:
+            return None
+
+        return start_line, "\n".join(code_lines)
+
+    def guess_language(self, path: str | None) -> str:
+        if not path:
+            return "text"
+        suffix = Path(path).suffix.lower()
+        return {
+            ".py": "python",
+            ".js": "javascript",
+            ".jsx": "jsx",
+            ".ts": "typescript",
+            ".tsx": "tsx",
+            ".json": "json",
+            ".toml": "toml",
+            ".yaml": "yaml",
+            ".yml": "yaml",
+            ".md": "markdown",
+            ".sh": "bash",
+            ".bash": "bash",
+            ".zsh": "bash",
+            ".rs": "rust",
+            ".go": "go",
+            ".java": "java",
+            ".kt": "kotlin",
+            ".swift": "swift",
+            ".c": "c",
+            ".h": "c",
+            ".cpp": "cpp",
+            ".hpp": "cpp",
+            ".css": "css",
+            ".html": "html",
+            ".xml": "xml",
+            ".sql": "sql",
+        }.get(suffix, "text")
+
+    def tool_call_complete(self,
+                           call_id: str,
+                           name: str,
+                           tool_kind: str | None,
+                           success: bool, output: str,
+                           error: str | None,
+                           metadata: dict[str, Any] | None,
+                           truncated: bool):
+
+        border_style = f"tool.{tool_kind}" if tool_kind else "tool"
+        status_icon = "✓" if success else "✗"
+        status_style = "success" if success else "error"
+        title = Text.assemble(
+            (f"{status_icon}", status_style),
+            (name, "tool"),
+            ("  ", "muted"),
+            (f"#{call_id[:8]}", "muted")
+        )
+
+        primary_path = None
+        if isinstance(metadata, dict) and isinstance(metadata.get("path"), str):
+            primary_path = metadata.get("path")
+
+        if name == "read_file" and success:
+            start_line, code = self.extract_read_file_code(output)
+            shown_start = 0
+            shown_end = 0
+            total_lines = 0
+            blocks = []
+
+            if metadata:
+                shown_start = metadata.get("shown_start", 0)
+                shown_end = metadata.get("shown_end", 0)
+                total_lines = metadata.get("total_lines", 0)
+                programming_language = self.guess_language(primary_path)
+
+            blocks.append(Text())
+
+            header_parts = [display_path_rel_to_cwd(primary_path, self.cwd)]
+            header_parts.append(" ⏺ ")
+
+            if shown_start and shown_end and total_lines:
+                header_parts.append(f"lines {shown_start}-{shown_end} of {total_lines}")
+
+            header_parts = "".join(header_parts)
+            blocks.append(Text(header_parts, style="muted"))
+
+        # just to display the path in a relative or an absolute way
+        display_args = dict(arguments)
+        for key in ("path", "cwd"):
+            val = display_args.get(key)  # main.py
+            if isinstance(val, str) and self.cwd:
+                display_args[key] = str(display_path_rel_to_cwd(Path(val), self.cwd))
 
         # for a bordered box around everything
         panel = Panel(

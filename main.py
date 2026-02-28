@@ -63,6 +63,9 @@ class CLI:
                     event.data.get("arguments", {})
                 )
 
+            elif event.type == AgentEventType.TOOL_CALL_COMPLETE:
+                tool_name = event.data.get("name", "unknown")
+
         return final_response
 
 
