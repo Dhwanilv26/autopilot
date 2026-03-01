@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import box
 from rich.syntax import Syntax
-
+from rich.console import Group
 import re  # importing regex
 
 from utils.paths import display_path_rel_to_cwd, resolve_path
@@ -238,6 +238,7 @@ class TUI:
                 shown_start = 0
                 shown_end = 0
                 total_lines = 0
+                programming_language = ""
 
                 if metadata:
                     shown_start = metadata.get("shown_start", 0)
@@ -255,32 +256,31 @@ class TUI:
 
                 header = "".join(header_parts)
                 blocks.append(Text(header, style="muted"))
-                blocks.append(Syntax(
-                    code,
-                    programming_language,
-                    theme="monokai",
-                    line_numbers=True
-                    start_line=start_line
-                    word_wrap=False
-                ))
+                blocks.append(
+                    Syntax(
+                        code=code or "",
+                        lexer=programming_language,
+                        theme="monokai",
+                        line_numbers=True,
+                        start_line=start_line or 0,
+                        word_wrap=False
+                    )
+                )
             else:
                 truncate_text(output, "", 240)
                 blocks.append(Syntax(output, "text", theme="monokai", word_wrap=False))
 
         # just to display the path in a relative or an absolute way
-        display_args = dict(arguments)
-        for key in ("path", "cwd"):
-            val = display_args.get(key)  # main.py
-            if isinstance(val, str) and self.cwd:
-                display_args[key] = str(display_path_rel_to_cwd(Path(val), self.cwd))
+
+        if truncated:
+            blocks.append(Text("note: tool output was truncated", style="warning"))
 
         # for a bordered box around everything
         panel = Panel(
-            self.render_arguments_table(name, arguments) if display_args else Text(
-                "(no args)", style="muted"),
+            Group(*blocks),
             title=title,
             title_align="left",
-            subtitle=Text("running", style="muted"),
+            subtitle=Text("done" if success else "failed", style=status_style),
             subtitle_align="right",
             box=box.ROUNDED,
             border_style=border_style,

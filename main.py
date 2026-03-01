@@ -65,6 +65,22 @@ class CLI:
 
             elif event.type == AgentEventType.TOOL_CALL_COMPLETE:
                 tool_name = event.data.get("name", "unknown")
+                tool = self.agent.tool_registry.get(tool_name)
+                tool_kind = None
+
+                if tool and tool_kind:
+                    tool_kind = tool.kind.value
+
+                self.tui.tool_call_complete(
+                    event.data.get("call_id", ""),
+                    tool_name,
+                    tool_kind,
+                    event.data.get("success", False),
+                    event.data.get("output", ""),
+                    event.data.get("error"),
+                    event.data.get("metadata"),
+                    event.data.get("truncated", False)
+                )
 
         return final_response
 
