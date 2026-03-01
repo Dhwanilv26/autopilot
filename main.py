@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 import sys
 from typing import Any
 import click
@@ -23,6 +24,14 @@ class CLI:
             return await self._process_message(message)
 
     async def run_interactive(self) -> str | None:
+        self.tui.print_welcome(
+            "AI Agent",
+            lines=[
+                f"model: nvidia/nemotron-3-nano-30b-a3b:free",
+                f"cwd: {Path.cwd()}",
+                "commands: /help /config /approval /model /exit"
+            ]
+        )
         async with Agent() as agent:
             self.agent = agent
             while True:

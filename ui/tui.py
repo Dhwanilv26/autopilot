@@ -204,6 +204,19 @@ class TUI:
             ".sql": "sql",
         }.get(suffix, "text")
 
+    def print_welcome(self, title: str, lines: list[str]) -> None:
+        body = "\n".join(lines)
+        self.console.print(
+            Panel(
+                Text(body, style="code"),
+                title=Text(title, style="highlight"),
+                title_align="left",
+                border_style="border",
+                box=box.ROUNDED,
+                padding=(1, 2)
+            )
+        )
+
     def tool_call_complete(self,
                            call_id: str,
                            name: str,
