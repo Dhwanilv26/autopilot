@@ -7,6 +7,7 @@ from client.llm_client import LLMClient
 from client.response import StreamEventType, ToolCall, ToolResultMessage
 from context.manager import ContextManager
 from tools.registry import create_default_registry
+import json
 
 
 class Agent:
@@ -21,17 +22,23 @@ class Agent:
         yield AgentEvent.agent_start(message)
         self.context_manager.add_user_message(message)
 
-        async for event in self._agentic_loop():
-            yield event
+        try:
+            async for event in self._agentic_loop():
+                yield event
 
-            if event.type == AgentEventType.TEXT_COMPLETE:
-                final_response = event.data.get("content")
+                if event.type == AgentEventType.TEXT_COMPLETE:
+                    final_response = event.data.get("content")
+
+        except Exception as e:
+            print("AGENT LOOP CRASHED:", e)
+            raise
 
         yield AgentEvent.agent_end(final_response)
 
     async def _agentic_loop(self) -> AsyncGenerator[AgentEvent, None]:
 
         response_text = ""
+        # print(self.context_manager.get_messages())
 
         if not self.client:
             raise RuntimeError("agent must be used in a 'async with' block")
@@ -49,6 +56,7 @@ class Agent:
             if event.type == StreamEventType.TEXT_DELTA:
                 if event.text_delta:
                     content = event.text_delta.content
+                    # print("hello")
                     response_text += content
                     yield AgentEvent.text_delta(content)
 
@@ -58,7 +66,7 @@ class Agent:
 
             elif event.type == StreamEventType.ERROR:
                 yield AgentEvent.agent_end(event.error or "Unknown error occured.")
-
+        # print("response_text is this", response_text)
         self.context_manager.add_assistant_message(
             response_text,
             (
@@ -68,7 +76,9 @@ class Agent:
                         "type": "function",
                         "function": {
                             "name": tc.name,
-                            "arguments": str(tc.arguments)
+                            # loads to convert into python object like dict or list
+                            # dumps to convert string to json object
+                            "arguments": json.dumps(tc.arguments)
                         }
                     }
                     for tc in tool_calls

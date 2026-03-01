@@ -1,7 +1,6 @@
 from typing import Any
 from prompts.system import get_system_prompt
 from dataclasses import dataclass, field
-
 from utils.text import count_tokens
 
 
@@ -32,7 +31,7 @@ class MessageItem:
 class ContextManager:
     def __init__(self) -> None:
         self._system_prompt = get_system_prompt()
-        self._model_name = "nvidia/nemotron-3-nano-30b-a3b:free"
+        self._model_name = "qwen/qwen3-vl-30b-a3b-thinking"
         self._messages: list[MessageItem] = []
 
     # token count varies for each model and provider
@@ -47,7 +46,9 @@ class ContextManager:
         self._messages.append(item)
 
     def add_assistant_message(self, content: str, tool_calls: list[dict[str, Any]] | None = None) -> None:
-        print(tool_calls)
+        # print(tool_calls)
+        if not content and not tool_calls:
+            return
         item = MessageItem(
             role="assistant",
             content=content or "",
