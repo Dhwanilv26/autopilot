@@ -15,7 +15,7 @@ class Config (BaseModel):
     cwd: Path = Field(default_factory=Path.cwd)
 
     max_turns: int = 100
-    max_tool_output_tokens = 50_000
+    max_tool_output_tokens: int = 50_000
 
     # written in agents.md file
     developer_instructions: str | None = None

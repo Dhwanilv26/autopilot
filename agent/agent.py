@@ -5,17 +5,19 @@ from typing import AsyncGenerator
 from agent.events import AgentEvent, AgentEventType
 from client.llm_client import LLMClient
 from client.response import StreamEventType, ToolCall, ToolResultMessage
+from config.config import Config
 from context.manager import ContextManager
 from tools.registry import create_default_registry
 import json
 
 
 class Agent:
-    def __init__(self):
+    def __init__(self, config: Config):
         # all variables are specific to a session, to avoid memory leaks, context pollution and maintain isolation while focusing concurrency
-        self.client = LLMClient()
+        self.client = LLMClient(config=config)
         self.context_manager = ContextManager()
         self.tool_registry = create_default_registry()  # ToolRegistry() already called here
+        self.config = config
 
     async def run(self, message: str):
         final_response = None

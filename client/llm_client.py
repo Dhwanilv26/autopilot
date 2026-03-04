@@ -4,21 +4,23 @@ from openai import APIConnectionError, APIError, AsyncOpenAI
 from typing import Any, AsyncGenerator
 from openai import RateLimitError
 from client.response import StreamEventType, StreamEvent, TextDelta, TokenUsage, ToolCall, ToolCallDelta, parse_tool_call_arguments
+from config.config import Config
 
 
 class LLMClient:
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
         # initialising the client first
         # client is a private variable, can have only 2 types asyncopenai or none, = is the default value
         self._client: AsyncOpenAI | None = None
         self._max_retries: int = 3
+        self.config = config
 
     def get_client(self) -> AsyncOpenAI:
         if self._client is None:
             # this is just to establish a connection to the server, model is used to actually send prompts
             self._client = AsyncOpenAI(
-                api_key="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",
-                base_url="https://openrouter.ai/api/v1"
+                api_key=self.config.api_key,
+                base_url=self.config.base_url
             )
         return self._client
 

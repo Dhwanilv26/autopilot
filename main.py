@@ -7,18 +7,24 @@ import click
 from agent.agent import Agent
 from agent.events import AgentEventType
 from client.llm_client import LLMClient
+from config.config import Config
+from config.loader import load_config
 from ui.tui import TUI, get_console
+
+from dotenv import load_dotenv
+load_dotenv()
 
 console = get_console()
 
 
 class CLI:
-    def __init__(self):
+    def __init__(self, config: Config):
         self.agent: Agent | None = None
         self.tui = TUI(console)
+        self.config = config
 
     async def run_single(self, message: str) -> str | None:
-        async with Agent() as agent:
+        async with Agent(config=self.config) as agent:
             self.agent = agent
             # return directly used as it is a run single function, and return await unwraps the coroutine here itself
             return await self._process_message(message)
@@ -32,7 +38,7 @@ class CLI:
                 "commands: /help /config /approval /model /exit"
             ]
         )
-        async with Agent() as agent:
+        async with Agent(self.config) as agent:
             self.agent = agent
             while True:
                 try:
@@ -112,15 +118,33 @@ class CLI:
 
 @click.command()
 @click.argument("prompt", required=False)
+@click.option("--cwd",
+              "-c",
+              type=click.Path(exists=True, file_okay=False, path_type=Path),
+              help="Current working directory")
 def main(
     prompt: str | None,
+    cwd: Path | None
 ):
-    cli = CLI()
-    # client = LLMClient()
-    # messages = [{"role": "user", "content": prompt}]
-    # yield value in the event variable
+    try:
+        config = load_config(cwd=cwd)
+    except Exception as e:
+        console.print(f"[error]configuration error : {e}[/error]")
+        sys.exit(1)
 
-    # used async for instead of await to process the response in chunks and not wait till the entire response, and chat_completion returns an async generator
+    if config is None:
+        console.print(f"[error]configuration error: failed to load configuration[/error]")
+        sys.exit(1)
+
+    errors = config.get_validation_errors()
+
+    if errors:
+        for error in errors:
+            console.print(f"[error]configuration error: {error}[/error]")
+
+        sys.exit(1)
+    cli = CLI(config)
+
     if prompt:
         result = asyncio.run(cli.run_single(prompt))
         if result is None:
