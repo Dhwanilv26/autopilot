@@ -15,7 +15,7 @@ class Agent:
     def __init__(self, config: Config):
         # all variables are specific to a session, to avoid memory leaks, context pollution and maintain isolation while focusing concurrency
         self.client = LLMClient(config=config)
-        self.context_manager = ContextManager()
+        self.context_manager = ContextManager(config)
         self.tool_registry = create_default_registry()  # ToolRegistry() already called here
         self.config = config
 
@@ -39,91 +39,98 @@ class Agent:
 
     async def _agentic_loop(self) -> AsyncGenerator[AgentEvent, None]:
 
-        response_text = ""
-        # print(self.context_manager.get_messages())
+        max_turns = self.config.max_turns
 
-        if not self.client:
-            raise RuntimeError("agent must be used in a 'async with' block")
+        for turn_num in range(max_turns):
 
-        tool_schemas = self.tool_registry.get_schemas()
+            response_text = ""
+            # print(self.context_manager.get_messages())
 
-        tool_calls: list[ToolCall] = []
+            if not self.client:
+                raise RuntimeError("agent must be used in a 'async with' block")
 
-        async for event in self.client.chat_completion(
-                messages=self.context_manager.get_messages(),
-                tools=tool_schemas if tool_schemas else None,
-                stream=True
-        ):
-            # print(event)
-            if event.type == StreamEventType.TEXT_DELTA:
-                if event.text_delta:
-                    content = event.text_delta.content
-                    # print("hello")
-                    response_text += content
-                    yield AgentEvent.text_delta(content)
+            tool_schemas = self.tool_registry.get_schemas()
 
-            elif event.type == StreamEventType.TOOL_CALL_COMPLETE:
-                if event.tool_call:
-                    tool_calls.append(event.tool_call)
+            tool_calls: list[ToolCall] = []
 
-            elif event.type == StreamEventType.ERROR:
-                yield AgentEvent.agent_end(event.error or "Unknown error occured.")
-        # print("response_text is this", response_text)
-        self.context_manager.add_assistant_message(
-            response_text,
-            (
-                [
-                    {
-                        "id": tc.call_id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.name,
-                            # loads to convert into python object like dict or list
-                            # dumps to convert string to json object
-                            "arguments": json.dumps(tc.arguments)
+            async for event in self.client.chat_completion(
+                    messages=self.context_manager.get_messages(),
+                    tools=tool_schemas if tool_schemas else None,
+                    stream=True
+            ):
+                # print(event)
+                if event.type == StreamEventType.TEXT_DELTA:
+                    if event.text_delta:
+                        content = event.text_delta.content
+                        # print("hello")
+                        response_text += content
+                        yield AgentEvent.text_delta(content)
+
+                elif event.type == StreamEventType.TOOL_CALL_COMPLETE:
+                    if event.tool_call:
+                        tool_calls.append(event.tool_call)
+
+                elif event.type == StreamEventType.ERROR:
+                    yield AgentEvent.agent_end(event.error or "Unknown error occured.")
+            # print("response_text is this", response_text)
+            self.context_manager.add_assistant_message(
+                response_text,
+                (
+                    [
+                        {
+                            "id": tc.call_id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.name,
+                                # loads to convert into python object like dict or list
+                                # dumps to convert string to json object
+                                "arguments": json.dumps(tc.arguments)
+                            }
                         }
-                    }
-                    for tc in tool_calls
-                ]
-            ) if tool_calls else None
-        )
-
-        if response_text:
-            yield AgentEvent.text_complete(response_text)
-
-        tool_call_results: list[ToolResultMessage] = []
-        for tool_call in tool_calls:
-            yield AgentEvent.tool_call_start(
-                tool_call.call_id,
-                tool_call.name,
-                tool_call.arguments
+                        for tc in tool_calls
+                    ]
+                ) if tool_calls else None
             )
 
-            result = await self.tool_registry.invoke(
-                name=tool_call.name,
-                params=tool_call.arguments,
-                cwd=Path.cwd()
-            )
+            if response_text:
+                yield AgentEvent.text_complete(response_text)
 
-            yield AgentEvent.tool_call_complete(
-                tool_call.call_id,
-                tool_call.name,
-                result
-            )
-            # just formatting everything before adding to the global context to suit LLM formats
-            tool_call_results.append(
-                ToolResultMessage(
-                    tool_call_id=tool_call.call_id,
-                    content=result.to_model_output(),
-                    is_error=not result.success
+            if not tool_calls:
+                return
+
+            tool_call_results: list[ToolResultMessage] = []
+            for tool_call in tool_calls:
+                yield AgentEvent.tool_call_start(
+                    tool_call.call_id,
+                    tool_call.name,
+                    tool_call.arguments
                 )
-            )
 
-        for tool_result in tool_call_results:
-            self.context_manager.add_tool_result(
-                tool_result.tool_call_id,
-                tool_result.content
-            )
+                result = await self.tool_registry.invoke(
+                    name=tool_call.name,
+                    params=tool_call.arguments,
+                    cwd=Path.cwd()
+                )
+
+                yield AgentEvent.tool_call_complete(
+                    tool_call.call_id,
+                    tool_call.name,
+                    result
+                )
+                # just formatting everything before adding to the global context to suit LLM formats
+                tool_call_results.append(
+                    ToolResultMessage(
+                        tool_call_id=tool_call.call_id,
+                        content=result.to_model_output(),
+                        is_error=not result.success
+                    )
+                )
+
+            for tool_result in tool_call_results:
+                self.context_manager.add_tool_result(
+                    tool_result.tool_call_id,
+                    tool_result.content
+                )
 
     # __ is used for reserved keywords and methods in python, aenter is for async enter
 

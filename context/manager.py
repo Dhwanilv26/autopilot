@@ -1,4 +1,5 @@
 from typing import Any
+from config.config import Config
 from prompts.system import get_system_prompt
 from dataclasses import dataclass, field
 from utils.text import count_tokens
@@ -29,8 +30,8 @@ class MessageItem:
 
 
 class ContextManager:
-    def __init__(self) -> None:
-        self._system_prompt = get_system_prompt()
+    def __init__(self, config: Config) -> None:
+        self._system_prompt = get_system_prompt(config)
         self._model_name = "qwen/qwen3-vl-30b-a3b-thinking"
         self._messages: list[MessageItem] = []
 
