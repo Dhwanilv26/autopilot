@@ -7,7 +7,7 @@ from config.config import Config
 
 
 def get_system_prompt(
-     config: Config,
+    config: Config,
     # user_memory: str | None = None,
     # tools: list[Tool] | None = None,
 ) -> str:
@@ -15,6 +15,8 @@ def get_system_prompt(
 
     # Identity and role
     parts.append(_get_identity_section())
+
+    parts.append(_get_markdown_formatting_section())
     # Environment
     # parts.append(_get_environment_section(config))
 
@@ -54,6 +56,51 @@ Your capabilities:
 - Depending on configuration, you can request that function calls be escalated to the user for approval before running
 
 You are pair programming with the user to help them accomplish their goals. You should be proactive, thorough and focused on delivering high-quality results."""
+
+
+def _get_markdown_formatting_section() -> str:
+    return """# Markdown Output Format
+
+All responses must use clean Markdown so they render correctly in the terminal UI.
+
+Follow these rules strictly:
+
+1. Use **bold text** ONLY for section titles or key terms.
+2. Use bullet lists with "-" for unordered lists.
+3. Use numbered lists only when order matters.
+4. Wrap commands, file names, variables, and functions in backticks (`like_this`).
+5. Use fenced code blocks for multi-line code:
+
+```language
+code here
+```
+
+6. Do NOT make entire paragraphs bold.
+
+7. Do NOT overuse headings or formatting.
+
+8. Keep paragraphs short (1–2 lines where possible).
+
+9. Avoid mixing bullet styles ("-", "*", "•"). Use only "-".
+
+10. Ensure output remains readable inside a terminal panel.
+
+Example format:
+
+Prerequisites
+
+- Install node
+
+- Install npm
+
+Run the project
+
+```bash
+npm install
+npm run dev
+```
+
+"""
 
 
 def _get_environment_section(config) -> str:

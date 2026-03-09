@@ -219,7 +219,7 @@ class LLMClient:
                                    kwargs: dict[str, Any]) -> StreamEvent:
         # spreading the kwargs like ... in js
         response = await client.chat.completions.create(**kwargs)
-        print("raw response", response)
+        # print("raw response", response)
         choice = response.choices[0]
         message = choice.message
         text_delta = None

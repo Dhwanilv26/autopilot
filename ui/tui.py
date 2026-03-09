@@ -10,25 +10,42 @@ from rich.table import Table
 from rich import box
 from rich.syntax import Syntax
 from rich.console import Group
+from rich.markdown import Markdown
+from rich.style import Style
 import re  # importing regex
+
+from utils.markdown import normalize_markdown
 
 from utils.paths import display_path_rel_to_cwd, resolve_path
 from utils.text import truncate_text
 AGENT_THEME = Theme(
     {
         # General - Using a mix of professional and alert neons
-        "info": "dodger_blue1",
+        # "info": "dodger_blue1",
+        "info": "#ff8c42",
         "warning": "orange1",
         "error": "bright_red bold",
         "success": "spring_green3",
         "dim": "grey37",
         "muted": "grey42",
         "border": "grey27",
-        "highlight": "underline bold sky_blue1",
+        "highlight": "underline bold #ff8c42",
 
         # Roles - Strong contrast between User and Assistant
         "user": "deep_sky_blue1 bold",
-        "assistant": "bright_white",
+        # "assistant": "bright_white",
+
+        "assistant": "bold #ff8c42",
+        "assistant.text": "#ff8c42",
+
+
+        "markdown.heading": "bold #ff8c42",
+        "markdown.bold": "bold #ff8c42",
+        "markdown.code": "#ff8c42",
+        "markdown.item": "white",
+        "markdown.block_quote": "dim",
+
+        "code": "grey93",
 
         # Tools - Vibrant neons to distinguish from regular text
         "tool": "medium_purple1 bold",
@@ -39,8 +56,6 @@ AGENT_THEME = Theme(
         "tool.memory": "sea_green1",
         "tool.mcp": "cyan2",
 
-        # Code / blocks - Crisp and readable
-        "code": "grey93",
     }
 )
 # jaanbuchkar private rkaha taaki globally sirf ek hi instance bane and dusre files sirf get_console() se hi access kar paayenge saara
@@ -50,7 +65,11 @@ _console: Console | None = None
 def get_console() -> Console:
     global _console
     if _console is None:
-        _console = Console(theme=AGENT_THEME, highlight=False)
+        # _console = Console(theme=AGENT_THEME, highlight=False)
+        _console = Console(theme=AGENT_THEME,
+                           highlight=True,
+                           markup=True,
+                           soft_wrap=True)
 
     return _console
 
@@ -59,22 +78,101 @@ class TUI:
     def __init__(self, console: Console | None = None) -> None:
         self.console = _console or get_console()
         self._assistant_stream_open = False
+        self._assistant_buffer: str = ""
         # call id and all args for that tool, used for caching as they are needed in multiple event displays in the tui
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
         self.cwd = Path.cwd()
 
     def begin_assistant(self) -> None:
         self.console.print()  # for new line
-        self.console.print(Rule(Text("Assistant", style="assistant")))
+        # self.console.print(Rule(Text("Assistant", style="assistant")))
         self._assistant_stream_open = True
+        self._assistant_buffer = ""
 
     def end_assistant(self) -> None:
-        if self._assistant_stream_open:
-            self.console.print()
+        if not self._assistant_stream_open:
+            return
+
+        self.console.print()
+
+        cleaned_text = normalize_markdown(self._assistant_buffer)
+
+        self.console.print()
+
+        md = Markdown(cleaned_text, code_theme="monokai")
+
+        panel = Panel(
+            md,
+            title=Text("Assistant", style="assistant"),
+            border_style="success",
+            padding=(1, 2),
+            box=box.ROUNDED,
+            expand=True
+        )
+
+        self.console.print(panel)
+
         self._assistant_stream_open = False
+        self._assistant_buffer = ""
 
     def stream_assistant_delta(self, content: str) -> None:
-        self.console.print(content, end="", markup=False)
+        # self.console.print(content, end="", markup=False)
+        # store for markdown rendering later
+        self._assistant_buffer += content
+
+        # stream raw tokens for live feedback
+        # self.console.print(content, end="", markup=False, highlight=False)
+
+    def render_assistant_message(self, content: str):
+        lines = content.split("\n")
+        blocks = []
+
+        code_block = []
+        in_code = False
+        lang = "python"
+
+        for line in lines:
+
+            # detect ``` blocks
+            if line.strip().startswith("```"):
+                if not in_code:
+                    in_code = True
+                    lang = line.strip().replace("```", "") or "python"
+                    code_block = []
+                else:
+                    blocks.append(
+                        Syntax(
+                            "\n".join(code_block),
+                            lang,
+                            theme="monokai",
+                            word_wrap=True
+                        )
+                    )
+                    in_code = False
+                continue
+
+            if in_code:
+                code_block.append(line)
+                continue
+
+            # bold text (** **)
+            bold_match = re.findall(r"\*\*(.*?)\*\*", line)
+            if bold_match:
+                text = Text(line.replace("**", ""), style="#ff8c42")
+                blocks.append(text)
+                continue
+
+            # bullet points
+            if line.strip().startswith(("-", "*", "•")):
+                bullet = Text("• ", style="muted")
+                bullet.append(line.strip()[1:].strip())
+                blocks.append(bullet)
+                continue
+
+            # normal paragraph
+            blocks.append(Text(line))
+
+        return Group(*blocks)
 
     def ordered_arguments(self, tool_name, args: dict[str, Any]) -> list[tuple]:
         # tuple is chosen because it is ordered and immutable
@@ -101,7 +199,8 @@ class TUI:
         table.add_column(style="code", overflow="fold")
 
         for key, value in self.ordered_arguments(tool_name, arguments):
-            table.add_row(key, value)
+            # Convert values into renderable text
+            table.add_row(str(key), Text(str(value), style="code"))
 
         return table
 
@@ -276,7 +375,7 @@ class TUI:
                         theme="monokai",
                         line_numbers=True,
                         start_line=start_line or 0,
-                        word_wrap=False
+                        word_wrap=True
                     )
                 )
             else:
