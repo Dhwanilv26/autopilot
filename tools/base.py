@@ -6,6 +6,7 @@ from pydantic import BaseModel, ValidationError
 from dataclasses import dataclass, field
 from pathlib import Path
 from pydantic.json_schema import model_json_schema
+import difflib
 
 
 class ToolKind(str, Enum):
@@ -15,6 +16,37 @@ class ToolKind(str, Enum):
     NETWORK = "network"
     MEMORY = "memory"
     MCP = "mcp"
+
+
+@dataclass
+class FileDiff:
+    path: Path
+    old_content: str
+    new_content: str
+
+    is_new_file: bool = False
+    is_deletion: bool = False
+
+    def create_diff(self) -> str:
+        old_lines = self.old_content.splitlines(keepends=True)
+        new_lines = self.new_content.splitlines(keepends=True)
+
+        if old_lines and not old_lines[-1].endswith('\n'):
+            old_lines[-1] += '\n'
+        if new_lines and not new_lines[-1].endswith('\n'):
+            new_lines[-1] += '\n'
+
+        old_name = '/dev/null' if self.is_new_file else str(self.path)
+        new_name = '/dev/null' if self.is_deletion else str(self.path)
+
+        diff = difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=old_name,
+            tofile=new_name
+        )
+
+        return "".join(diff)
 
 
 @dataclass
@@ -32,6 +64,28 @@ class ToolConfirmation:
 
 @dataclass
 class ToolResult:
+    # used to provide structured feedback to the LLM and better UI to the user
+    # invoke() method returns a toolresult,
+    # result = await self.session.tool_registry.invoke(...)
+    # yield AgentEvent.tool_call_complete(
+    #     tool_call.call_id,
+    #     tool_call.name,
+    #     result
+    # )
+    # elif event.type == AgentEventType.TOOL_CALL_COMPLETE: render something in the UI
+
+    # tool_call_results.append(
+    #     ToolResultMessage(
+    #         tool_call_id=tool_call.call_id,
+    #         content=result.to_model_output(),
+    #         is_error=not result.success
+    #     )
+    # )
+
+    #     self.session.context_manager.add_tool_result(
+    #     tool_result.tool_call_id,
+    #     tool_result.content
+    # )
     success: bool
     output: str
     error: str | None = None
@@ -39,6 +93,7 @@ class ToolResult:
     # field is only used for dataclasses, not for random objects, outside dataclass used {} only to initialize dicts
 
     truncated: bool = False
+    diff: FileDiff | None = None
 
     @classmethod
     def error_result(cls, error: str, output: str = "", **kwargs: Any):
