@@ -18,6 +18,9 @@ class Agent:
     async def run(self, message: str):
         final_response = None
         yield AgentEvent.agent_start(message)
+        if not self.session:
+            raise RuntimeError("Session missing")
+
         self.session.context_manager.add_user_message(message)
 
         try:
@@ -38,6 +41,9 @@ class Agent:
         max_turns = self.config.max_turns
 
         for turn_num in range(max_turns):
+            if not self.session:
+                raise RuntimeError("Session missing")
+            # self.session.increment_turn()
 
             response_text = ""
             # print(self.context_manager.get_messages())

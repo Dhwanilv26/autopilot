@@ -1,12 +1,10 @@
 import asyncio
 from pathlib import Path
 import sys
-from typing import Any
 import click
 
 from agent.agent import Agent
 from agent.events import AgentEventType
-from client.llm_client import LLMClient
 from config.config import Config
 from config.loader import load_config
 from ui.tui import TUI, get_console
@@ -81,7 +79,9 @@ class CLI:
 
             elif event.type == AgentEventType.TOOL_CALL_START:
                 tool_name = event.data.get("name", "unknown")
-                tool = self.agent.tool_registry.get(tool_name)
+                if not self.agent.session:
+                    raise RuntimeError("Session missing")
+                tool = self.agent.session.tool_registry.get(tool_name)
                 tool_kind = None
 
                 if tool and tool_kind:
@@ -96,7 +96,7 @@ class CLI:
 
             elif event.type == AgentEventType.TOOL_CALL_COMPLETE:
                 tool_name = event.data.get("name", "unknown")
-                tool = self.agent.tool_registry.get(tool_name)
+                tool = self.agent.session.tool_registry.get(tool_name)  # type: ignore
                 tool_kind = None
 
                 if tool and tool_kind:
