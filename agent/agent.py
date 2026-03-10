@@ -43,7 +43,7 @@ class Agent:
         for turn_num in range(max_turns):
             if not self.session:
                 raise RuntimeError("Session missing")
-            # self.session.increment_turn()
+            self.session.increment_turn()
 
             response_text = ""
             # print(self.context_manager.get_messages())

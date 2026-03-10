@@ -34,3 +34,13 @@ def is_binary_file(path: str | Path) -> bool:
             return b"\x00" in chunk
     except (OSError, IOError):
         return False
+
+# to check whether the parent directory already exists
+
+
+def ensure_parent_directory(path: str | Path) -> Path:
+    path = Path(path)
+    # parents -> nested folder creation, not file (only folder)
+    # exist_ok -> doesnt return a fileexists error if its already present
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
