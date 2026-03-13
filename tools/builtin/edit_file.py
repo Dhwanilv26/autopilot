@@ -1,6 +1,6 @@
+from pathlib import Path
 from tools.base import FileDiff, Tool, ToolInvocation, ToolKind, ToolResult
 from pydantic import BaseModel, Field
-
 from utils.paths import ensure_parent_directory, resolve_path
 
 
@@ -23,8 +23,8 @@ class EditParams(BaseModel):
     )
 
 
-class EditTool(Tool):
-    name = "edit"
+class EditFileTool(Tool):
+    name = "edit_file"
     description = (
         "Edit a file by replacing text. The old_string must match exactly"
         "(including whitespace and indentation) and must be unique in the file"
@@ -80,6 +80,56 @@ class EditTool(Tool):
         if occurence_count == 0:
             return self._no_match_error(params.old_string, old_content, path)
 
+        if occurence_count > 1 and not params.replace_all:
+            return ToolResult.error_result(
+                f"old_string found {occurence_count} times in {path}"
+                f"Either: \n"
+                f"1. Provide more context to make the match unique or \n"
+                f"2. Set replace_all=true to replace all occurences",
+                metadata={
+                    "occurence_count": occurence_count
+                }
+            )
+        replace_count = 0
+        if params.replace_all:
+            old_content.replace(params.old_string, params.new_string)
+            replace_count = occurence_count
+        else:
+            old_content.replace(params.old_string, params.new_string, 1)
+            replace_count = 1
+
+        if new_content == old_content:
+            return ToolResult.error_result("No change made - old_string equals new string")
+
+        try:
+            path.write_text(new_content, encoding="utf-8")
+        except IOError as e:
+            return ToolResult.error_result(f"failed to write file : {e}")
+
+        old_lines = len(old_content.splitlines())
+        new_lines = len(new_content.splitlines())
+        line_diff = old_lines-new_lines
+
+        diff_msg = ""
+
+        if line_diff > 0:
+            diff_msg = f" (+{line_diff}) lines"
+        elif line_diff < 0:
+            diff_msg = f" (-{line_diff}) lines"
+
+        return ToolResult.success_result(
+            f"Edited {path}: replaced {replace_count} occurence(s) {diff_msg}"
+            diff=FileDiff(
+                path=path,
+                old_content=new_content
+            ),
+            metadata={
+                "path": str(path),
+                "replace_count": replace_count,
+                "line_diff": line_diff
+            }
+        )
+
     def _no_match_error(self, old_string: str, content: str, path: Path) -> ToolResult:
         lines = content.splitlines()
 
@@ -95,3 +145,21 @@ class EditTool(Tool):
                         break
 
         error_msg = f"old_string not found in {path}"
+
+        if partial_matches:
+            error_msg += "\n\nPossible similar lines:"
+            for line_num, line_preview in partial_matches:
+                error_msg += f"\n line {line_num}: {line_preview}"
+            error_msg += (
+                "\n\nMake sure old_string matches exactly (including whitespace) "
+            )
+        else:
+            error_msg += (
+                "Make sure the text matches exactly, including:\n"
+                "- All whitespace and indentation"
+                "- Line breaks"
+                "- Any invisible characters"
+                "Try re-reading the file using read_file tool and then editing"
+            )
+
+        return ToolResult.error_result(error_msg)
