@@ -42,7 +42,7 @@ class EditTool(Tool):
         path = resolve_path(invocation.cwd, params.path)
 
         if not path.exists():
-        # creating a new file and then using the same logic as write_file
+            # creating a new file and then using the same logic as write_file
             if params.old_string:
                 return ToolResult.error_result(
                     f"File does not exist : {path}. To create a new file, use an empty old string instead"
@@ -65,4 +65,33 @@ class EditTool(Tool):
                     "is_new_file": True,
                     "lines": line_count
                 }
+
             )
+        old_content = path.read_text(encoding="utf-8")
+
+        # file exist kar rha, but content hi nai hai, to error hai.. yaa to purana content do, ya naya file banao
+        if not params.old_string:
+            return ToolResult.error_result(
+                f"old_string is empty but file exists. Provide old_string to edit, or use write_file instead"
+            )
+
+        occurence_count = old_content.count(params.old_string)
+
+        if occurence_count == 0:
+            return self._no_match_error(params.old_string, old_content, path)
+
+    def _no_match_error(self, old_string: str, content: str, path: Path) -> ToolResult:
+        lines = content.splitlines()
+
+        partial_matches = []
+        search_terms = old_string.split()[:5]
+
+        if search_terms:
+            first_term = search_terms[0]
+            for i, line in enumerate(lines, 1):
+                if first_term in line:
+                    partial_matches.append((i, line.strip()[:80]))
+                    if len(partial_matches) >= 3:
+                        break
+
+        error_msg = f"old_string not found in {path}"
