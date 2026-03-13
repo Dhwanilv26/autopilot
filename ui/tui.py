@@ -18,6 +18,8 @@ from utils.markdown import normalize_markdown
 
 from utils.paths import display_path_rel_to_cwd, resolve_path
 from utils.text import truncate_text
+
+from config.config import Config
 AGENT_THEME = Theme(
     {
         # General - Using a mix of professional and alert neons
@@ -82,6 +84,7 @@ class TUI:
         # call id and all args for that tool, used for caching as they are needed in multiple event displays in the tui
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
         self.cwd = Path.cwd()
+        self.config = Config
 
     def begin_assistant(self) -> None:
         self.console.print()  # for new line
@@ -177,7 +180,8 @@ class TUI:
     def ordered_arguments(self, tool_name, args: dict[str, Any]) -> list[tuple]:
         # tuple is chosen because it is ordered and immutable
         PREFERRED_ORDER = {
-            "read_file": ["path", "offset", "limit"]
+            "read_file": ["path", "offset", "limit"],
+            "write_file": ["path", "create_directories", "content"]
         }
         preferred = PREFERRED_ORDER.get(tool_name, [])
         ordered: list[tuple[str, Any]] = []
@@ -200,6 +204,11 @@ class TUI:
 
         for key, value in self.ordered_arguments(tool_name, arguments):
             # Convert values into renderable text
+            if isinstance(value, str):
+                if key in ("content", "old_string", "new_string"):
+                    line_count = len(value.splitlines()) or 0
+                    byte_count = len(value.encode('utf-8', errors="replace"))
+                    value = f"<{line_count} lines . {byte_count} bytes>"
             table.add_row(str(key), Text(str(value), style="code"))
 
         return table
@@ -323,6 +332,7 @@ class TUI:
                            success: bool, output: str,
                            error: str | None,
                            metadata: dict[str, Any] | None,
+                           diff: str | None,
                            truncated: bool):
 
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
@@ -382,7 +392,15 @@ class TUI:
                 truncate_text(output, "", 240)
                 blocks.append(Syntax(output, "text", theme="monokai", word_wrap=False))
 
-        # just to display the path in a relative or an absolute way
+        elif name == "write_file" and success and diff:
+            output_line = output.strip() if output.strip() else "Completed"
+            blocks.append(Text(output_line, style="muted"))
+            diff_text = diff
+            diff_display = truncate_text(diff_text, "qwen/qwen3-vl-30b-a3b-thinking", 240)
+
+            blocks.append(Syntax(diff_display, 'diff', theme="monokai", word_wrap=True))
+
+            # just to display the path in a relative or an absolute way
 
         if truncated:
             blocks.append(Text("note: tool output was truncated", style="warning"))

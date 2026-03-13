@@ -27,7 +27,7 @@ class FileDiff:
     is_new_file: bool = False
     is_deletion: bool = False
 
-    def create_diff(self) -> str:
+    def to_diff(self) -> str:
         old_lines = self.old_content.splitlines(keepends=True)
         new_lines = self.new_content.splitlines(keepends=True)
 
