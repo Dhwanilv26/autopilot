@@ -10,9 +10,19 @@ class ModelConfig(BaseModel):
     context_window: int = 256_000  # number of tokens a model can handle
 
 
+class ShellEnvironmentPolicy(BaseModel):
+    # ignoring std patterns like ["KEY","TOKEN","SECRET"] to avoid passing of API_KEYS to the LLM (false means dont ignore default excludes)
+    ignore_default_excludes: bool = False
+    exclude_patterns: list[str] = Field(default_factory=lambda: ["*KEY*", "*TOKEN*", "*SECRET*"])
+    # NODE_ENV -> production to dev change
+    set_vars: dict[str, str] = Field(default_factory=dict)
+
+
 class Config (BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     cwd: Path = Field(default_factory=Path.cwd)
+
+    shell_environment: ShellEnvironmentPolicy = Field(default_factory=ShellEnvironmentPolicy)
 
     max_turns: int = 100
     max_tool_output_tokens: int = 50_000

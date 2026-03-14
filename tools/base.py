@@ -8,6 +8,8 @@ from pathlib import Path
 from pydantic.json_schema import model_json_schema
 import difflib
 
+from config.config import Config
+
 
 class ToolKind(str, Enum):
     READ = "read"
@@ -92,6 +94,8 @@ class ToolResult:
     metadata: dict[str, Any] = field(default_factory=dict)
     # field is only used for dataclasses, not for random objects, outside dataclass used {} only to initialize dicts
 
+    exit_code: int | None = None
+
     truncated: bool = False
     diff: FileDiff | None = None
 
@@ -125,8 +129,8 @@ class Tool(abc.ABC):
     description: str = "Base tool"
     kind: ToolKind = ToolKind.READ
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, config: Config) -> None:
+        self.config = config
 
     @property  # we will only call tool.schema and not tool.schema()
     # method behaves like a property

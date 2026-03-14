@@ -334,7 +334,8 @@ class TUI:
                            error: str | None,
                            metadata: dict[str, Any] | None,
                            diff: str | None,
-                           truncated: bool):
+                           truncated: bool,
+                           exit_code: int | None):
 
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
         status_icon = "✓" if success else "✗"
