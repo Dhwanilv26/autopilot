@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class ModelConfig(BaseModel):
-    name: str = "qwen/qwen3-vl-30b-a3b-thinking"
+    name: str = "nvidia/nemotron-3-nano-30b-a3b:free"
     # temperature controls the creativity of the model
     temperature: float = Field(default=1, ge=0.0, le=2.0)
     context_window: int = 256_000  # number of tokens a model can handle

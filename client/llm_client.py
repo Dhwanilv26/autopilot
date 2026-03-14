@@ -60,7 +60,7 @@ class LLMClient:
         client = self.get_client()
         # msgs,stream sab aa gaya kwargs mai
         kwargs = {
-            "model": "qwen/qwen3-vl-30b-a3b-thinking",
+            "model": "nvidia/nemotron-3-nano-30b-a3b:free",
             "messages": messages,
             "stream": stream
         }

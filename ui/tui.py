@@ -397,7 +397,7 @@ class TUI:
             output_line = output.strip() if output.strip() else "Completed"
             blocks.append(Text(output_line, style="muted"))
             diff_text = diff
-            diff_display = truncate_text(diff_text, "qwen/qwen3-vl-30b-a3b-thinking", 240)
+            diff_display = truncate_text(diff_text, "nvidia/nemotron-3-nano-30b-a3b:free", 240)
 
             blocks.append(Syntax(diff_display, 'diff', theme="monokai", word_wrap=True))
 

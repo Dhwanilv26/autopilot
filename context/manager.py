@@ -32,7 +32,7 @@ class MessageItem:
 class ContextManager:
     def __init__(self, config: Config) -> None:
         self._system_prompt = get_system_prompt(config)
-        self._model_name = "qwen/qwen3-vl-30b-a3b-thinking"
+        self._model_name = "nvidia/nemotron-3-nano-30b-a3b:free"
         self._messages: list[MessageItem] = []
 
     # token count varies for each model and provider

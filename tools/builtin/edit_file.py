@@ -26,6 +26,7 @@ class EditParams(BaseModel):
 class EditFileTool(Tool):
     name = "edit_file"
     description = (
+        "Always call read_file first unless you are absolutely certain of the file contents."
         "Edit a file by replacing text. The old_string must match exactly"
         "(including whitespace and indentation) and must be unique in the file"
         "unless replace_all is true. Use this for precise, surgical edits"
@@ -76,11 +77,13 @@ class EditFileTool(Tool):
             )
 
         occurence_count = old_content.count(params.old_string)
-
+        # jo text hame replace karna tha, voh mila hi nai
+        # "a + b" tha file mai, LLM nai "a+b" diya, fir bhi galat hi hai
         if occurence_count == 0:
-            return self._no_match_error(params.old_string, old_content, path)
+            return self.recover_on_no_match_error(params.old_string, old_content, path)
 
         if occurence_count > 1 and not params.replace_all:
+            # 3 print("hello") statements use kiye debugging ke liye, hume nai pata konsa replace karna hai, to yaa to jyaada context chahiye ya fir saare replace karvado
             return ToolResult.error_result(
                 f"old_string found {occurence_count} times in {path}"
                 f"Either: \n"
@@ -91,14 +94,19 @@ class EditFileTool(Tool):
                 }
             )
         replace_count = 0
+        new_content = ""
+
         if params.replace_all:
-            old_content.replace(params.old_string, params.new_string)
+            new_content = old_content.replace(params.old_string, params.new_string)
+            # replacing every occurence
             replace_count = occurence_count
         else:
-            old_content.replace(params.old_string, params.new_string, 1)
+            new_content = old_content.replace(params.old_string, params.new_string, 1)
+            # replacing only the first occurence
             replace_count = 1
 
         if new_content == old_content:
+            # stopping agent from infinite loops and wasting tokens
             return ToolResult.error_result("No change made - old_string equals new string")
 
         try:
@@ -118,10 +126,11 @@ class EditFileTool(Tool):
             diff_msg = f" (-{line_diff}) lines"
 
         return ToolResult.success_result(
-            f"Edited {path}: replaced {replace_count} occurence(s) {diff_msg}"
+            f"Edited {path}: replaced {replace_count} occurence(s) {diff_msg}",
             diff=FileDiff(
                 path=path,
-                old_content=new_content
+                old_content=old_content,
+                new_content=new_content
             ),
             metadata={
                 "path": str(path),
@@ -130,16 +139,22 @@ class EditFileTool(Tool):
             }
         )
 
-    def _no_match_error(self, old_string: str, content: str, path: Path) -> ToolResult:
+    # to help the LLM to recover if it didn't find any matching text
+
+    def recover_on_no_match_error(self, old_string: str, content: str, path: Path) -> ToolResult:
         lines = content.splitlines()
 
-        partial_matches = []
+        partial_matches = []  # contains line_number and preview of line
+
+        # take first 5 letters from each old_string phrase
+        # to enhance the search
         search_terms = old_string.split()[:5]
 
         if search_terms:
-            first_term = search_terms[0]
+            first_term = search_terms[0]  # generally first_term is the most useful keyword
             for i, line in enumerate(lines, 1):
                 if first_term in line:
+                    # stripping to remove whitespaces and taking the first 80 characters
                     partial_matches.append((i, line.strip()[:80]))
                     if len(partial_matches) >= 3:
                         break
@@ -148,12 +163,14 @@ class EditFileTool(Tool):
 
         if partial_matches:
             error_msg += "\n\nPossible similar lines:"
+            # redirecting the LLM to think according to the partial matches (if present)
             for line_num, line_preview in partial_matches:
                 error_msg += f"\n line {line_num}: {line_preview}"
             error_msg += (
                 "\n\nMake sure old_string matches exactly (including whitespace) "
             )
         else:
+            # else being more strict and comprehensive and telling it to find text more properly
             error_msg += (
                 "Make sure the text matches exactly, including:\n"
                 "- All whitespace and indentation"
