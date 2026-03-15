@@ -184,7 +184,8 @@ class TUI:
             "write_file": ["path", "create_directories", "content"],
             "edit_file": ["path", "replace_all", "old_string", "new_string"],
             "shell": ["command", "timeout", "cwd"],
-            "list_dir": ["path", "include_hidden"]
+            "list_dir": ["path", "include_hidden"],
+            "grep": ["path", "case_insensitive", "pattern"]
         }
         preferred = PREFERRED_ORDER.get(tool_name, [])
         ordered: list[tuple[str, Any]] = []
@@ -411,7 +412,7 @@ class TUI:
 
             # just to display the path in a relative or an absolute way
 
-        elif name == "shell":
+        elif name == "shell" and success:
             command = args.get("command")
             if isinstance(command, str) and command.strip():
                 blocks.append(Text(f'$ {command.strip()}', style="muted"))
@@ -482,6 +483,32 @@ class TUI:
 
                 else:
                     blocks.append(Text("(no output)", style="muted"))
+
+            elif name == "grep" and success:
+                matches = metadata.get("matches")
+                files_searched = metadata.get("files_searched")
+                summary = []
+
+                if isinstance(matches, int):
+                    summary.append(f"{matches} matches found")
+                if isinstance(files_searched, int):
+                    summary.append(f"{files_searched} files searched")
+
+                if summary:
+                    blocks.append(Text(" . ".join(summary), style="muted"))
+
+                output_display = truncate_text(output,
+                                               "nvidia/nemotron-3-nano-30b-a3b:free",
+                                               2400)
+
+                blocks.append(
+                    Syntax(
+                        output_display,
+                        "text",
+                        theme="monokai",
+                        word_wrap=True
+                    )
+                )
 
         if truncated:
             blocks.append(Text("note: tool output was truncated", style="warning"))
