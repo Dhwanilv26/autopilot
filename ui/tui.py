@@ -431,10 +431,10 @@ class TUI:
             )
 
         elif name == "list_dir":
-            entries = metadata.get("entries")
-            path = metadata.get("path")
-            recursive = metadata.get("recursive")
-            max_depth = metadata.get("max_depth")
+            entries = args.get("entries")
+            path = args.get("path")
+            recursive = args.get("recursive")
+            max_depth = args.get("max_depth")
 
             summary = []
 

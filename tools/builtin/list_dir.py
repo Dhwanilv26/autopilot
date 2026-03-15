@@ -57,6 +57,7 @@ class ListDirTool(Tool):
                 f"Directory does not exist: {root}"
             )
 
+        # initializing the tree with the root folder
         lines = [f"{root.name}/"]
         entries = 0
 
@@ -71,6 +72,8 @@ class ListDirTool(Tool):
                     max_depth=params.max_depth
                 )
             else:
+                # list is always returned in ascending order,
+                # first all folders and then files sorted according to lower case
                 items = sorted(
                     root.iterdir(),
                     key=lambda p: (not p.is_dir(), p.name.lower())
@@ -114,20 +117,20 @@ class ListDirTool(Tool):
 
     def _build_tree(
         self,
-        directory: Path,
-        lines: list[str],
-        prefix: str,
+        directory: Path,  # current folder
+        lines: list[str],  # lists are mutable, so by reference hi pass hoga, integers are immutable
+        prefix: str,  # to show nested tree format
         include_hidden: bool,
         depth: int,
         max_depth: int
-    ) -> int:
+    ) -> int:  # returning number of entries found
 
-        if depth >= max_depth:
+        if depth >= max_depth:  # base case
             return 0
 
         try:
             items = sorted(
-                directory.iterdir(),
+                directory.iterdir(),  # returns all folders and files in Path() objects
                 key=lambda p: (not p.is_dir(), p.name.lower())
             )
         except Exception:
@@ -141,10 +144,12 @@ class ListDirTool(Tool):
 
         for index, item in enumerate(items):
 
+            # last file                             # abhi hai aage
             connector = "└── " if index == total - 1 else "├── "
 
             # Handle ignored directories
             if item.is_dir() and item.name in IGNORED_DIRS:
+                # to connect the tree properly
                 lines.append(f"{prefix}{connector}{item.name}/ (skipped)")
                 count += 1
                 continue
