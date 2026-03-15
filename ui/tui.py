@@ -433,18 +433,31 @@ class TUI:
         elif name == "list_dir":
             entries = metadata.get("entries")
             path = metadata.get("path")
+            recursive = metadata.get("recursive")
+            max_depth = metadata.get("max_depth")
 
             summary = []
+
             if isinstance(path, str):
                 summary.append(path)
 
             if isinstance(entries, int):
                 summary.append(f"{entries} entries")
 
+            if recursive:
+                if isinstance(max_depth, int):
+                    summary.append(f"recursive (depth={max_depth})")
+                else:
+                    summary.append("recursive")
+
             if summary:
                 blocks.append(Text(" . ".join(summary), style="muted"))
 
-            output_display = truncate_text(output, "nvidia/nemotron-3-nano-30b-a3b:free", 2400)
+            output_display = truncate_text(
+                output,
+                "nvidia/nemotron-3-nano-30b-a3b:free",
+                2400
+            )
 
             blocks.append(
                 Syntax(
@@ -455,20 +468,20 @@ class TUI:
                 )
             )
 
-        if error and not success:
-            blocks.append(Text(error, style="error"))
+            if error and not success:
+                blocks.append(Text(error, style="error"))
 
-            output_display = truncate_text(output, "nvidia/nemotron-3-nano-30b-a3b:free", 2400)
+                output_display = truncate_text(output, "nvidia/nemotron-3-nano-30b-a3b:free", 2400)
 
-            if output_display.strip():
-                blocks.append(Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True))
+                if output_display.strip():
+                    blocks.append(Syntax(
+                        output_display,
+                        "text",
+                        theme="monokai",
+                        word_wrap=True))
 
-            else:
-                blocks.append(Text("(no output)", style="muted"))
+                else:
+                    blocks.append(Text("(no output)", style="muted"))
 
         if truncated:
             blocks.append(Text("note: tool output was truncated", style="warning"))
