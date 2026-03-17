@@ -28,7 +28,8 @@ class GrepParams(BaseModel):
 
 class GrepTool(Tool):
     name = "grep"
-    description = "Search for a regex pattern in the file contents. Returns matching lines with file paths and line numbers."
+    description = "Search for a regex pattern in the file contents. Returns matching lines with file paths and line numbers." \
+    "Always use correct absolute path."
     kind = ToolKind.READ
 
     @property

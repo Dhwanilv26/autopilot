@@ -185,7 +185,8 @@ class TUI:
             "edit_file": ["path", "replace_all", "old_string", "new_string"],
             "shell": ["command", "timeout", "cwd"],
             "list_dir": ["path", "include_hidden"],
-            "grep": ["path", "case_insensitive", "pattern"]
+            "grep": ["path", "case_insensitive", "pattern"],
+            "glob": ["path", "pattern"]
         }
         preferred = PREFERRED_ORDER.get(tool_name, [])
         ordered: list[tuple[str, Any]] = []
@@ -484,34 +485,66 @@ class TUI:
                 else:
                     blocks.append(Text("(no output)", style="muted"))
 
-            elif name == "grep" and success:
-                matches = metadata.get("matches")
-                files_searched = metadata.get("files_searched")
-                summary = []
+        elif name == "grep" and success:
+            matches = args.get("matches")
+            files_searched = args.get("files_searched")
+            summary = []
 
-                if isinstance(matches, int):
-                    summary.append(f"{matches} matches found")
-                if isinstance(files_searched, int):
-                    summary.append(f"{files_searched} files searched")
+            if isinstance(matches, int):
+                summary.append(f"{matches} matches found")
+            if isinstance(files_searched, int):
+                summary.append(f"{files_searched} files searched")
 
-                if summary:
-                    blocks.append(Text(" . ".join(summary), style="muted"))
+            if summary:
+                blocks.append(Text(" . ".join(summary), style="muted"))
 
-                output_display = truncate_text(output,
-                                               "nvidia/nemotron-3-nano-30b-a3b:free",
-                                               2400)
+            output_display = truncate_text(output,
+                                           "nvidia/nemotron-3-nano-30b-a3b:free",
+                                           2400)
 
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True
+                )
+            )
+
+        elif name == "grep" and success:
+            matches = args.get("matches")
+
+            if isinstance(matches, int):
+                blocks.append(Text(f"{matches} files found", style="muted"))
+
+            output_display = truncate_text(output,
+                                           "nvidia/nemotron-3-nano-30b-a3b:free",
+                                           2400)
+
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True
+                )
+            )
+
+        if truncated:
+            blocks.append(Text("note: tool output was truncated", style="warning"))
+
+        if not blocks:
+            if output.strip():
                 blocks.append(
                     Syntax(
-                        output_display,
+                        truncate_text(output, "", 2400),
                         "text",
                         theme="monokai",
                         word_wrap=True
                     )
                 )
-
-        if truncated:
-            blocks.append(Text("note: tool output was truncated", style="warning"))
+            else:
+                blocks.append(Text("(no output)", style="muted"))
 
         # for a bordered box around everything
         panel = Panel(
