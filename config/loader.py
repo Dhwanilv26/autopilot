@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any
 from config.config import Config
-from platformdirs import user_config_dir
+from platformdirs import user_config_dir, user_data_dir
 import tomli
 from utils.errors import ConfigError
 
@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 def get_config_dir() -> Path:
     # global config path dir -> ~/Library/Application Support/agentic-cli/config.toml (in macos) platform dirs is used to get global file access, the path is different on windows/linux
     return Path(user_config_dir("agentic-cli"))
+
+
+def get_data_dir() -> Path:
+    return Path(user_data_dir("agentic-cli"))
 
 
 def get_system_config_path() -> Path:
@@ -75,7 +79,6 @@ def load_config(cwd: Path | None) -> Config | None:
     # system config file -> config.yaml file se sab configs extract kar sakte hai
     system_path = get_system_config_path()
     # this wont crash if the file doesnt exist (Path("doesnot-exist")) is valid, just p.open() p.close() read() aisa kuch kiya toh hi crash hoga, yaha par .is_file() false return kardega to issue nai hai
-    
 
     # temp dict to collect data before validation
     config_dict: dict[str, Any] = {}

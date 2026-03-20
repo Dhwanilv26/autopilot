@@ -636,14 +636,18 @@ class TUI:
 
                     blocks.append(Text(f"{icon} {status.upper()}", style=f"bold {color}"))
 
-                    table = Table(show_header=True, header_style="bold magenta")
+                    table = Table(
+                        show_header=True,
+                        header_style="bold magenta",
+                        border_style=color,
+                        box=box.ROUNDED
+                    )
                     table.add_column("ID", style="dim", width=10)
                     table.add_column("Priority", justify="center")
                     table.add_column("Task", overflow="fold")
 
                     for tid, t in items:
                         priority = t["priority"]
-
                         if priority == "high":
                             p_text = Text(priority, style="bold red")
                         elif priority == "medium":
