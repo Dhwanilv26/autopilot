@@ -66,10 +66,17 @@ class MemoryTool(Tool):
 
             memory = self._load_memory()
             if params.key not in memory["entries"]:
-                return ToolResult.error_result(f"'key' not found in memory {params.key}")
+                return ToolResult.error_result(
+                    f"'key' not found in memory {params.key}",
+                    metadata={
+                        "found": False
+                    })
 
             return ToolResult.success_result(
-                f"memory found: {params.key}: {memory['entries'][params.key]}"
+                f"memory found: {params.key}: {memory['entries'][params.key]}",
+                metadata={
+                    "found": True
+                }
             )
 
         elif params.action.lower() == "delete":
@@ -95,7 +102,10 @@ class MemoryTool(Tool):
             for key, value in sorted(entries.items()):
                 lines.append(f" {key}:{value}")
 
-            return ToolResult.success_result("\n".join(lines))
+            return ToolResult.success_result("\n".join(lines),
+                                             metadata={
+                "found": False
+            })
 
         elif params.action.lower() == "clear":
             memory = self._load_memory()

@@ -187,7 +187,9 @@ class TUI:
             "shell": ["command", "timeout", "cwd"],
             "list_dir": ["path", "include_hidden"],
             "grep": ["path", "case_insensitive", "pattern"],
-            "glob": ["path", "pattern"]
+            "glob": ["path", "pattern"],
+            "todos": ["id", "action", "content"],
+            "memory": ["action", "key", "value"]
         }
         preferred = PREFERRED_ORDER.get(tool_name, [])
         ordered: list[tuple[str, Any]] = []
@@ -662,6 +664,23 @@ class TUI:
                         )
 
                     blocks.append(table)
+
+        elif name == "memory" and success:
+            action = args.get('action')
+            key = args.get('key')
+            found = args.get("found")
+
+            summary = []
+
+            if isinstance(action, str) and action:
+                summary.append(action)
+            if isinstance(key, str) and key:
+                summary.append(key)
+            if isinstance(found, bool) and found is not None:
+                summary.append("found" if found else "missing")
+
+            if summary:
+                blocks.append(Text(".".join(summary), style="muted"))
         else:
             # fallback if no tool call is executed
             output_display = truncate_text(
