@@ -32,12 +32,15 @@ class WebSearchTool(Tool):
         try:
             results = DDGS().text(
                 params.query,
-                region="us-en",
+                region="in-en",
                 safesearch="off",
-                timelimit="y",
+                timelimit="y",  # recency filter, y=year
                 page=1,
+                # auto choose b/w html,cached results, 3rd party APIs (e.g, Wikipedia)
                 backend="auto"
             )
+
+            results = list(results)[:params.max_results]
         except Exception as e:
             return ToolResult.error_result(f"web search failed : {e}")
 
@@ -52,11 +55,11 @@ class WebSearchTool(Tool):
         output_lines = [f"Search results for: {params.query}"]
 
         for i, result in enumerate(results, start=1):
-            output_lines.append(f"{i}, Title: {result["title"]}")
-            output_lines.append(f" URL: {result["title"]}")
+            output_lines.append(f"{i}, Title: {result['title']}")
+            output_lines.append(f" URL: {result['href']}")
 
-            if result.get("body"):
-                output_lines.append(f" Snippet: {result["body"]}")
+            if result.get('body'):
+                output_lines.append(f" Snippet: {result['body']}")
 
             output_lines.append("")
 
