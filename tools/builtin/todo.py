@@ -5,39 +5,40 @@ import uuid
 from datetime import datetime
 
 
-# -------------------------------
-# PARAMS
-# -------------------------------
 class TodosParams(BaseModel):
     action: str
 
     id: str | None = None
     content: str | None = None
-    contents: list[str] | None = None
+    contents: list | None = None
 
     priority: str | None = None
-
-    # filtering / sorting
     status: str | None = None
-    sort_by: str | None = None  # "priority", "created_at"
+    sort_by: str | None = None
 
 
-# -------------------------------
-# TOOL
-# -------------------------------
 class TodosTool(Tool):
     name = "todos"
     description = """
-Advanced todo manager with:
-- batch add (add_all)
-- status tracking (pending → in_progress → completed)
-- priority (low, medium, high)
-- filtering + sorting
-- grouped table output
+Advanced todo manager with batch support, per-task priority, status tracking.
 
 IMPORTANT:
-- Use add_all for multiple todos
-- After adding todos, ALWAYS call 'list' to display the updated task table.
+- ALWAYS use structured format for add_all:
+  contents: [{"content": "...", "priority": "high"}]
+
+- DO NOT send plain string lists if priority is important.
+
+Examples:
+
+Correct:
+action: "add_all"
+contents: [
+  {"content": "Setup backend", "priority": "high"},
+  {"content": "Write tests", "priority": "low"}
+]
+
+Incorrect:
+contents: ["Setup backend", "Write tests"]
 """
     kind = ToolKind.MEMORY
 
@@ -49,9 +50,6 @@ IMPORTANT:
         super().__init__(config)
         self._todos: dict[str, dict] = {}
 
-    # -------------------------------
-    # HELPERS
-    # -------------------------------
     def _now(self):
         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -67,14 +65,11 @@ IMPORTANT:
     def _filter_and_sort(self, todos, status=None, sort_by=None):
         items = list(todos.items())
 
-        # FILTER
         if status:
             items = [(k, v) for k, v in items if v["status"] == status]
 
-        # SORT
         if sort_by == "priority":
             items.sort(key=lambda x: self._priority_value(x[1]["priority"]), reverse=True)
-
         elif sort_by == "created_at":
             items.sort(key=lambda x: x[1]["created_at"])
 
@@ -99,29 +94,47 @@ IMPORTANT:
             if not group_items:
                 continue
 
+            id_width = max(len("ID"), *(len(tid) for tid, _ in group_items))
+            priority_width = max(len("PRIORITY"), *(len(t["priority"]) for _, t in group_items))
+            task_width = max(len("TASK"), *(len(t["content"]) for _, t in group_items))
+            task_width = min(task_width, 50)
+
             lines.append(f"\n=== {status.upper()} ===")
 
-            header = f"{'ID':<10} | {'PRIORITY':<8} | TASK"
+            header = (
+                f"{'ID'.ljust(id_width)} | "
+                f"{'PRIORITY'.ljust(priority_width)} | "
+                f"{'TASK'.ljust(task_width)}"
+            )
+
+            separator = (
+                f"{'-'*id_width}-+-"
+                f"{'-'*priority_width}-+-"
+                f"{'-'*task_width}"
+            )
+
             lines.append(header)
-            lines.append("-" * len(header))
+            lines.append(separator)
 
             for tid, t in group_items:
-                lines.append(
-                    f"{tid:<10} | {t['priority']:<8} | {t['content']}"
+                content = t["content"]
+                if len(content) > task_width:
+                    content = content[:task_width - 3] + "..."
+
+                row = (
+                    f"{tid.ljust(id_width)} | "
+                    f"{t['priority'].ljust(priority_width)} | "
+                    f"{content.ljust(task_width)}"
                 )
+
+                lines.append(row)
 
         return "\n".join(lines)
 
-    # -------------------------------
-    # EXECUTE
-    # -------------------------------
     async def execute(self, invocation: ToolInvocation) -> ToolResult:
         params = TodosParams(**invocation.params)
         action = params.action.lower()
 
-        # -------------------------------
-        # ADD
-        # -------------------------------
         if action == "add":
             if not params.content:
                 return ToolResult.error_result("'content' required")
@@ -137,43 +150,39 @@ IMPORTANT:
                 "updated_at": now
             }
 
-            return ToolResult.success_result(f"Added [{tid}]")
+            table = self._format_grouped_table(self._todos.items())
+            return ToolResult.success_result(f"Added [{tid}]\n{table}")
 
-        # -------------------------------
-        # ADD_ALL
-        # -------------------------------
         elif action == "add_all":
             if not params.contents:
                 return ToolResult.error_result("'contents' required")
 
             now = self._now()
-            added = []
 
             for item in params.contents:
-                if not item.strip():
+                if isinstance(item, dict):
+                    content = item.get("content")
+                    priority = self._validate_priority(item.get("priority"))
+                else:
+                    content = item
+                    priority = self._validate_priority(params.priority)
+
+                if not content or not content.strip():
                     continue
 
                 tid = str(uuid.uuid4())[:8]
 
                 self._todos[tid] = {
-                    "content": item.strip(),
+                    "content": content.strip(),
                     "status": "pending",
-                    "priority": self._validate_priority(params.priority),
+                    "priority": priority,
                     "created_at": now,
                     "updated_at": now
                 }
 
-                added.append((tid, item.strip()))
+            table = self._format_grouped_table(self._todos.items())
+            return ToolResult.success_result(f"Added todos\n{table}")
 
-            lines = ["Added todos:"]
-            for tid, content in added:
-                lines.append(f"[{tid}]: {content}")
-
-            return ToolResult.success_result("\n".join(lines))
-
-        # -------------------------------
-        # START
-        # -------------------------------
         elif action == "start":
             if not params.id or params.id not in self._todos:
                 return ToolResult.error_result("Valid 'id' required")
@@ -181,11 +190,9 @@ IMPORTANT:
             self._todos[params.id]["status"] = "in_progress"
             self._todos[params.id]["updated_at"] = self._now()
 
-            return ToolResult.success_result(f"Started [{params.id}]")
+            table = self._format_grouped_table(self._todos.items())
+            return ToolResult.success_result(f"Started [{params.id}]\n{table}")
 
-        # -------------------------------
-        # COMPLETE
-        # -------------------------------
         elif action == "complete":
             if not params.id or params.id not in self._todos:
                 return ToolResult.error_result("Valid 'id' required")
@@ -193,11 +200,9 @@ IMPORTANT:
             self._todos[params.id]["status"] = "completed"
             self._todos[params.id]["updated_at"] = self._now()
 
-            return ToolResult.success_result(f"Completed [{params.id}]")
+            table = self._format_grouped_table(self._todos.items())
+            return ToolResult.success_result(f"Completed [{params.id}]\n{table}")
 
-        # -------------------------------
-        # UPDATE
-        # -------------------------------
         elif action == "update":
             if not params.id or params.id not in self._todos:
                 return ToolResult.error_result("Valid 'id' required")
@@ -210,11 +215,9 @@ IMPORTANT:
 
             self._todos[params.id]["updated_at"] = self._now()
 
-            return ToolResult.success_result(f"Updated [{params.id}]")
+            table = self._format_grouped_table(self._todos.items())
+            return ToolResult.success_result(f"Updated [{params.id}]\n{table}")
 
-        # -------------------------------
-        # LIST (ADVANCED)
-        # -------------------------------
         elif action == "list":
             items = self._filter_and_sort(
                 self._todos,
@@ -223,12 +226,8 @@ IMPORTANT:
             )
 
             table = self._format_grouped_table(items)
-
             return ToolResult.success_result(table)
 
-        # -------------------------------
-        # CLEAR
-        # -------------------------------
         elif action == "clear":
             count = len(self._todos)
             self._todos.clear()
