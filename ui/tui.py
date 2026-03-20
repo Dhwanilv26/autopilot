@@ -601,6 +601,21 @@ class TUI:
                 )
             )
 
+        elif name == "todos" and success:
+            output_display = truncate_text(
+                output,
+                "openrouter/free",
+                2400
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+
         # for a bordered box around everything
         panel = Panel(
             Group(*blocks),
