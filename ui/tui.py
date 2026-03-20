@@ -71,7 +71,8 @@ def get_console() -> Console:
         _console = Console(theme=AGENT_THEME,
                            highlight=True,
                            markup=True,
-                           soft_wrap=True)
+                           soft_wrap=True,
+                           force_terminal=True)
 
     return _console
 
@@ -602,6 +603,63 @@ class TUI:
             )
 
         elif name == "todos" and success:
+            todos = {}
+            groups = {}
+            if metadata and metadata.get("type") == "todos":
+                todos = metadata.get("todos", {})
+
+            if not todos:
+                blocks.append(Text("No todos", style="bold yellow"))
+            else:
+                groups = {
+                    "pending": [],
+                    "in_progress": [],
+                    "completed": []
+                }
+
+                for tid, t in todos.items():
+                    groups[t["status"]].append((tid, t))
+
+                for status, items in groups.items():
+                    if not items:
+                        continue
+
+                    if status == "pending":
+                        color = "yellow"
+                        icon = "⏳"
+                    elif status == "in_progress":
+                        color = "cyan"
+                        icon = "🔄"
+                    else:
+                        color = "green"
+                        icon = "✔"
+
+                    blocks.append(Text(f"{icon} {status.upper()}", style=f"bold {color}"))
+
+                    table = Table(show_header=True, header_style="bold magenta")
+                    table.add_column("ID", style="dim", width=10)
+                    table.add_column("Priority", justify="center")
+                    table.add_column("Task", overflow="fold")
+
+                    for tid, t in items:
+                        priority = t["priority"]
+
+                        if priority == "high":
+                            p_text = Text(priority, style="bold red")
+                        elif priority == "medium":
+                            p_text = Text(priority, style="yellow")
+                        else:
+                            p_text = Text(priority, style="green")
+
+                        table.add_row(
+                            tid,
+                            p_text,
+                            t["content"]
+                        )
+
+                    blocks.append(table)
+        else:
+            # fallback if no tool call is executed
             output_display = truncate_text(
                 output,
                 "openrouter/free",

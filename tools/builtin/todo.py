@@ -33,8 +33,8 @@ Examples:
 Correct:
 action: "add_all"
 contents: [
-  {"content": "Setup backend", "priority": "high"},
-  {"content": "Write tests", "priority": "low"}
+  {'content': "Setup backend", "priority": "high"},
+  "content": "Write tests", "priority": "low"}
 ]
 
 Incorrect:
