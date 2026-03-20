@@ -60,7 +60,7 @@ class LLMClient:
         client = self.get_client()
         # msgs,stream sab aa gaya kwargs mai
         kwargs = {
-            "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+            "model": "openrouter/free",
             "messages": messages,
             "stream": stream
         }

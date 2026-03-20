@@ -407,7 +407,7 @@ class TUI:
             output_line = output.strip() if output.strip() else "Completed"
             blocks.append(Text(output_line, style="muted"))
             diff_text = diff
-            diff_display = truncate_text(diff_text, "nvidia/nemotron-3-nano-30b-a3b:free", 240)
+            diff_display = truncate_text(diff_text, "openrouter/free", 240)
 
             blocks.append(Syntax(diff_display, 'diff', theme="monokai", word_wrap=True))
 
@@ -421,7 +421,7 @@ class TUI:
             if exit_code is not None:
                 blocks.append(Text(f"exit_code={exit_code}", style="muted"))
 
-            output_display = truncate_text(output, "nvidia/nemotron-3-nano-30b-a3b:free", 2400)
+            output_display = truncate_text(output, "openrouter/free", 2400)
 
             blocks.append(
                 Syntax(
@@ -457,7 +457,7 @@ class TUI:
 
             output_display = truncate_text(
                 output,
-                "nvidia/nemotron-3-nano-30b-a3b:free",
+                "openrouter/free",
                 2400
             )
 
@@ -473,7 +473,7 @@ class TUI:
             if error and not success:
                 blocks.append(Text(error, style="error"))
 
-                output_display = truncate_text(output, "nvidia/nemotron-3-nano-30b-a3b:free", 2400)
+                output_display = truncate_text(output, "openrouter/free", 2400)
 
                 if output_display.strip():
                     blocks.append(Syntax(
@@ -499,7 +499,7 @@ class TUI:
                 blocks.append(Text(" . ".join(summary), style="muted"))
 
             output_display = truncate_text(output,
-                                           "nvidia/nemotron-3-nano-30b-a3b:free",
+                                           "openrouter/free",
                                            2400)
 
             blocks.append(
@@ -518,7 +518,7 @@ class TUI:
                 blocks.append(Text(f"{matches} files found", style="muted"))
 
             output_display = truncate_text(output,
-                                           "nvidia/nemotron-3-nano-30b-a3b:free",
+                                           "openrouter/free",
                                            2400)
 
             blocks.append(
@@ -545,6 +545,61 @@ class TUI:
                 )
             else:
                 blocks.append(Text("(no output)", style="muted"))
+
+        elif name == "web_search" and success:
+            results = args.get("results")
+            query = args.get("query")
+            summary = []
+            if isinstance(query, str):
+                summary.append(query)
+            if isinstance(results, int):
+                summary.append(f"{results} results")
+
+            if summary:
+                blocks.append(Text(" • ".join(summary), style="muted"))
+
+            output_display = truncate_text(
+                output,
+                "openrouter/free",
+                2400
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
+
+        elif name == "web_fetch" and success:
+            status_code = args.get("status_code")
+            content_length = args.get("content_length")
+            url = args.get("url")
+            summary = []
+            if isinstance(status_code, str):
+                summary.append(str(status_code))
+            if isinstance(content_length, int):
+                summary.append(f"{content_length} bytes")
+            if isinstance(url, str):
+                summary.append(url)
+
+            if summary:
+                blocks.append(Text(" • ".join(summary), style="muted"))
+
+            output_display = truncate_text(
+                output,
+                "openrouter/free",
+                2400
+            )
+            blocks.append(
+                Syntax(
+                    output_display,
+                    "text",
+                    theme="monokai",
+                    word_wrap=True,
+                )
+            )
 
         # for a bordered box around everything
         panel = Panel(

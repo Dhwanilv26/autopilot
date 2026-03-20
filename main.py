@@ -31,7 +31,7 @@ class CLI:
         self.tui.print_welcome(
             "AI Agent",
             lines=[
-                f"model: nvidia/nemotron-3-nano-30b-a3b:free",
+                f"model: openrouter/free",
                 f"cwd: {Path.cwd()}",
                 "commands: /help /config /approval /model /exit"
             ]
