@@ -76,6 +76,9 @@ class SubAgentTool(Tool):
         - Do not engage in unrelated actions
         - Once you have completed the task or have the answer, provide your final response
         - Be concise and direct in your output
+        - Tools are executed automatically by the system
+        - NEVER output TOOLCALL or tool JSON manually
+        - Do NOT simulate tool calls in text
         """
 
         tool_calls = []
@@ -93,11 +96,12 @@ class SubAgentTool(Tool):
                         break
                     if event.type == AgentEventType.TOOL_CALL_START:
                         tool_calls.append(event.data.get("name"))
-                    elif event.type == AgentEventType.TEXT_COMPLETE:
-                        final_response = event.data.get("content")
+                    # elif event.type == AgentEventType.TEXT_COMPLETE:
+                    #     final_response = event.data.get("content")
                     elif event.type == AgentEventType.AGENT_END:
                         if final_response is None:
                             final_response = event.data.get('response')
+                            break
                     elif event.type == AgentEventType.AGENT_ERROR:
                         terminate_response = "error"
                         error = event.data.get("error", "unknown")
@@ -108,13 +112,7 @@ class SubAgentTool(Tool):
             error = str(e)
             final_response = f"sub-agent failed : {e}"
 
-        result = f"""
-        Sub-agent '{self.definition.name} completed.'
-        Termination: {terminate_response}
-        Tools called: {', '.join(tool_calls) if tool_calls else 'None'}
-        
-        Result: {final_response or 'No response'}
-        """
+        result = final_response or "No response"
 
         if error:
             return ToolResult.error_result(

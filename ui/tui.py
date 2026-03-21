@@ -682,66 +682,61 @@ class TUI:
             if summary:
                 blocks.append(Text(".".join(summary), style="muted"))
 
-        elif name.startswith("subagent_") and success:
+        elif name.startswith("subagent_"):
 
-            subagent_name = name.replace("subagent_", "")
+            agent_name = args.get("agent", "unknown")
+            termination = args.get("termination", "")
+            tools_used = args.get("tools_used", [])
+            error_msg = args.get("error")
 
-            blocks.append(Text())
-            blocks.append(Text(f"Sub-Agent: {subagent_name}", style="bold cyan"))
-            blocks.append(Text("━" * 50, style="dim"))
-
-            output_display = truncate_text(output, "openrouter/free", 2400)
-
-            lines = output_display.strip().splitlines()
-
-            termination = None
-            tools_used = None
-            result_lines = []
-
-            for line in lines:
-                if "Termination:" in line:
-                    termination = line.strip()
-                elif "Tools called:" in line:
-                    tools_used = line.strip()
-                elif "Result:" in line:
-                    continue
-                else:
-                    result_lines.append(line)
-
-            if termination:
-                blocks.append(Text(termination, style="yellow"))
-
-            if tools_used:
-                blocks.append(Text(tools_used, style="magenta"))
-
-            blocks.append(Text())
-            blocks.append(Text("Result:", style="bold green"))
-
-            result_text = "\n".join(result_lines).strip()
-
+            # Header
             blocks.append(
-                Syntax(
-                    result_text if result_text else "(no result)",
-                    "markdown",
-                    theme="monokai",
-                    word_wrap=True
+                Panel(
+                    f"🤖 {agent_name}\n"
+                    f"Termination: {termination}\n"
+                    f"Tools: {', '.join(tools_used) if tools_used else 'None'}",
+                    style="cyan",
+                    title="Sub-Agent"
                 )
             )
+            if not success:
+                blocks.append(
+                    Panel(
+                        error_msg or output,
+                        title="❌ Error",
+                        border_style="red"
+                    )
+                )
+            else:
+                blocks.append(
+                    Panel(
+                        Markdown(output),
+                        title="📄 Result",
+                        border_style="green"
+                    )
+                )
+
         else:
-            # fallback if no tool call is executed
+            # fallback if no tool call is executed or for subagents
+            if error and not success:
+                blocks.append(Text(error, style='error'))
+
             output_display = truncate_text(
                 output,
                 "openrouter/free",
                 2400
             )
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True,
+            if output_display.strip():
+                blocks.append(
+                    Syntax(
+                        output_display,
+                        "text",
+                        theme="monokai",
+                        word_wrap=True,
+                    )
                 )
-            )
+            else:
+                blocks.append(Text("(no output)", style="muted"))
 
         # for a bordered box around everything
         panel = Panel(
