@@ -3,8 +3,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from agent.agent import Agent
-from agent.events import AgentEvent
 from config.config import Config
 from tools.base import Tool, ToolInvocation, ToolResult
 from dataclasses import dataclass
@@ -51,9 +49,13 @@ class SubAgentTool(Tool):
 
     async def execute(self, invocation: ToolInvocation) -> ToolResult:
         params = SubAgentParams(**invocation.params)
+        from agent.agent import Agent
+        from agent.events import AgentEventType
+        # using lazy importing to avoid circular import,
+        # agent.py calling subagent.py and subagent.py calling agent.py , agent.py is not even fully loaded when calling it from subagent.py, so importing it later when subagent.py file is loaded properly
 
         if not params.goal:
-            return ToolResult.error_result("no goal was specified for subagent")
+            return ToolResult.error_result("no goal was specified for subagent. (LLM failed to provide one)")
         config_dict = self.config.to_dict()
         config_dict['max_turns'] = self.definition.max_turns
 
@@ -89,11 +91,14 @@ class SubAgentTool(Tool):
                         terminate_response = "timeout"
                         final_response = "sub-agent timed out"
                         break
-                    if event.type == AgentEvent.tool_call_start:
+                    if event.type == AgentEventType.TOOL_CALL_START:
                         tool_calls.append(event.data.get("name"))
-                    elif event.type == AgentEvent.text_complete:
+                    elif event.type == AgentEventType.TEXT_COMPLETE:
                         final_response = event.data.get("content")
-                    elif event.type == AgentEvent.agent_error:
+                    elif event.type == AgentEventType.AGENT_END:
+                        if final_response is None:
+                            final_response = event.data.get('response')
+                    elif event.type == AgentEventType.AGENT_ERROR:
                         terminate_response = "error"
                         error = event.data.get("error", "unknown")
                         final_response = f"sub-agent error: {error}"
@@ -126,4 +131,6 @@ class SubAgentTool(Tool):
             metadata={"agent": self.definition.name,
                       "termination": terminate_response,
                       "tools_used": tool_calls}
+
+
         )
