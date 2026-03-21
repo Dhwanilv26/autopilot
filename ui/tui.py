@@ -1,9 +1,8 @@
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 
 from rich.console import Console
 from rich.theme import Theme
-from rich.rule import Rule
 from rich.text import Text
 from rich.panel import Panel
 from rich.table import Table
@@ -11,85 +10,120 @@ from rich import box
 from rich.syntax import Syntax
 from rich.console import Group
 from rich.markdown import Markdown
-from rich.style import Style
-import re  # importing regex
+from rich.padding import Padding
+import re
 
-from utils.markdown import normalize_markdown
-
-from utils.paths import display_path_rel_to_cwd, resolve_path
+from utils.markdown import normalize_markdown_assistant, normalize_markdown_subagent
+from utils.paths import display_path_rel_to_cwd
 from utils.text import truncate_text
-
 from config.config import Config
+
+
 AGENT_THEME = Theme(
     {
-        # General - Using a mix of professional and alert neons
-        # "info": "dodger_blue1",
-        "info": "#ff8c42",
-        "warning": "orange1",
-        "error": "bright_red bold",
-        "success": "spring_green3",
-        "dim": "grey37",
-        "muted": "grey42",
-        "border": "grey27",
-        "highlight": "underline bold #ff8c42",
+        # Core status
+        "info":            "#ff8c42",
+        "warning":         "orange1",
+        "error":           "bright_red bold",
+        "success":         "spring_green3",
+        "dim":             "grey37",
+        "muted":           "grey46",
+        "border":          "grey27",
+        "highlight":       "underline bold #ff8c42",
 
-        # Roles - Strong contrast between User and Assistant
-        "user": "deep_sky_blue1 bold",
-        # "assistant": "bright_white",
+        # Roles
+        "user":            "deep_sky_blue1 bold",
+        "assistant":       "bold #ff8c42",
+        "assistant.text":  "#ff8c42",
 
-        "assistant": "bold #ff8c42",
-        "assistant.text": "#ff8c42",
+        # Rich Markdown overrides
+        "markdown.heading":     "bold #ff8c42",
+        "markdown.bold":        "bold #ff8c42",
+        "markdown.code":        "#ff8c42",
+        "markdown.item":        "white",
+        "markdown.block_quote": "dim italic",
+        "markdown.hr":          "grey37",
 
-
-        "markdown.heading": "bold #ff8c42",
-        "markdown.bold": "bold #ff8c42",
-        "markdown.code": "#ff8c42",
-        "markdown.item": "white",
-        "markdown.block_quote": "dim",
-
+        # Inline code / syntax text
         "code": "grey93",
 
-        # Tools - Vibrant neons to distinguish from regular text
-        "tool": "medium_purple1 bold",
-        "tool.read": "aquamarine1",
-        "tool.write": "gold1",
-        "tool.shell": "bright_magenta",
+        # Tool-kind accent colours
+        "tool":         "medium_purple1 bold",
+        "tool.read":    "aquamarine1",
+        "tool.write":   "gold1",
+        "tool.shell":   "bright_magenta",
         "tool.network": "cornflower_blue",
-        "tool.memory": "sea_green1",
-        "tool.mcp": "cyan2",
+        "tool.memory":  "sea_green1",
+        "tool.mcp":     "cyan2",
 
+        # Status chip labels
+        "chip.running": "grey46",
+        "chip.done":    "spring_green3",
+        "chip.failed":  "bright_red",
     }
 )
-# jaanbuchkar private rkaha taaki globally sirf ek hi instance bane and dusre files sirf get_console() se hi access kar paayenge saara
+
+
+TOOL_ICONS: dict[str, str] = {
+    "read_file":  "📖",
+    "write_file": "✏️",
+    "edit_file":  "📝",
+    "shell":      "🖥️",
+    "list_dir":   "📂",
+    "grep":       "🔍",
+    "glob":       "🌐",
+    "web_search": "🌐",
+    "web_fetch":  "🌍",
+    "todos":      "✅",
+    "memory":     "🧠",
+}
+
 _console: Console | None = None
 
 
 def get_console() -> Console:
     global _console
     if _console is None:
-        # _console = Console(theme=AGENT_THEME, highlight=False)
-        _console = Console(theme=AGENT_THEME,
-                           highlight=True,
-                           markup=True,
-                           soft_wrap=True,
-                           force_terminal=True)
-
+        _console = Console(
+            theme=AGENT_THEME,
+            highlight=True,
+            markup=True,
+            soft_wrap=True,
+            force_terminal=True,
+        )
     return _console
 
 
+def _tool_icon(name: str) -> str:
+    if name.startswith("subagent_"):
+        return "🤖"
+    return TOOL_ICONS.get(name, "⚙️")
+
+
+def _fmt_bytes(n: int) -> str:
+    """Human-readable byte size."""
+    if n < 1024:
+        return f"{n} B"
+    if n < 1024 ** 2:
+        return f"{n / 1024:.1f} KB"
+    return f"{n / 1024 ** 2:.1f} MB"
+
+
 class TUI:
+
     def __init__(self, console: Console | None = None) -> None:
-        self.console = _console or get_console()
+        self.console = console or get_console()
         self._assistant_stream_open = False
         self._assistant_buffer: str = ""
-        # call id and all args for that tool, used for caching as they are needed in multiple event displays in the tui
+        # Cached args per call_id; needed in tool_call_complete
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
         self.cwd = Path.cwd()
         self.config = Config
 
+    # ── Assistant ─────────────────────────────────────────────────────────────
+
     def begin_assistant(self) -> None:
-        self.console.print()  # for new line
-        # self.console.print(Rule(Text("Assistant", style="assistant")))
+        self.console.print()
         self._assistant_stream_open = True
         self._assistant_buffer = ""
 
@@ -97,60 +131,52 @@ class TUI:
         if not self._assistant_stream_open:
             return
 
-        self.console.print()
+        cleaned = normalize_markdown_assistant(self._assistant_buffer)
+        md = Markdown(cleaned, code_theme="monokai")
 
-        cleaned_text = normalize_markdown(self._assistant_buffer)
-
-        self.console.print()
-
-        md = Markdown(cleaned_text, code_theme="monokai")
+        title = Text.assemble(("◆ ", "assistant"), ("Assistant", "assistant"))
 
         panel = Panel(
             md,
-            title=Text("Assistant", style="assistant"),
+            title=title,
+            title_align="left",
             border_style="success",
-            padding=(1, 2),
             box=box.ROUNDED,
-            expand=True
+            padding=(1, 2),
+            expand=True,
         )
 
+        self.console.print()
         self.console.print(panel)
+        self.console.print()
 
         self._assistant_stream_open = False
         self._assistant_buffer = ""
 
     def stream_assistant_delta(self, content: str) -> None:
-        # self.console.print(content, end="", markup=False)
-        # store for markdown rendering later
+        """Buffer streamed tokens; rendered all at once in end_assistant."""
         self._assistant_buffer += content
 
-        # stream raw tokens for live feedback
-        # self.console.print(content, end="", markup=False, highlight=False)
-
-    def render_assistant_message(self, content: str):
+    def render_assistant_message(self, content: str) -> Group:
+        """
+        Block-by-block renderer for assistant content used when
+        streaming is bypassed entirely.
+        """
         lines = content.split("\n")
-        blocks = []
-
-        code_block = []
+        blocks: list[Any] = []
+        code_block: list[str] = []
         in_code = False
         lang = "python"
 
         for line in lines:
-
-            # detect ``` blocks
             if line.strip().startswith("```"):
                 if not in_code:
                     in_code = True
-                    lang = line.strip().replace("```", "") or "python"
+                    lang = line.strip().lstrip("`").strip() or "python"
                     code_block = []
                 else:
                     blocks.append(
-                        Syntax(
-                            "\n".join(code_block),
-                            lang,
-                            theme="monokai",
-                            word_wrap=True
-                        )
+                        Syntax("\n".join(code_block), lang, theme="monokai", word_wrap=True)
                     )
                     in_code = False
                 continue
@@ -159,130 +185,142 @@ class TUI:
                 code_block.append(line)
                 continue
 
-            # bold text (** **)
-            bold_match = re.findall(r"\*\*(.*?)\*\*", line)
-            if bold_match:
-                text = Text(line.replace("**", ""), style="#ff8c42")
-                blocks.append(text)
+            if re.search(r"\*\*(.*?)\*\*", line):
+                blocks.append(Text(line.replace("**", ""), style="#ff8c42"))
                 continue
 
-            # bullet points
             if line.strip().startswith(("-", "*", "•")):
-                bullet = Text("• ", style="muted")
-                bullet.append(line.strip()[1:].strip())
-                blocks.append(bullet)
+                t = Text("  • ", style="muted")
+                t.append(line.strip()[1:].strip(), style="white")
+                blocks.append(t)
                 continue
 
-            # normal paragraph
             blocks.append(Text(line))
 
         return Group(*blocks)
 
-    def ordered_arguments(self, tool_name, args: dict[str, Any]) -> list[tuple]:
-        # tuple is chosen because it is ordered and immutable
-        PREFERRED_ORDER = {
-            "read_file": ["path", "offset", "limit"],
-            "write_file": ["path", "create_directories", "content"],
-            "edit_file": ["path", "replace_all", "old_string", "new_string"],
-            "shell": ["command", "timeout", "cwd"],
-            "list_dir": ["path", "include_hidden"],
-            "grep": ["path", "case_insensitive", "pattern"],
-            "glob": ["path", "pattern"],
-            "todos": ["id", "action", "content"],
-            "memory": ["action", "key", "value"]
-        }
-        preferred = PREFERRED_ORDER.get(tool_name, [])
+    # ── Argument ordering ─────────────────────────────────────────────────────
+
+    _PREFERRED_ORDER: dict[str, list[str]] = {
+        "read_file":  ["path", "offset", "limit"],
+        "write_file": ["path", "create_directories", "content"],
+        "edit_file":  ["path", "replace_all", "old_string", "new_string"],
+        "shell":      ["command", "timeout", "cwd"],
+        "list_dir":   ["path", "include_hidden"],
+        "grep":       ["path", "case_insensitive", "pattern"],
+        "glob":       ["path", "pattern"],
+        "todos":      ["id", "action", "content"],
+        "memory":     ["action", "key", "value"],
+    }
+
+    def ordered_arguments(self, tool_name: str, args: dict[str, Any]) -> list[tuple]:
+        preferred = self._PREFERRED_ORDER.get(tool_name, [])
         ordered: list[tuple[str, Any]] = []
-        seen = set()
+        seen: set[str] = set()
 
         for key in preferred:
             if key in args:
                 ordered.append((key, args[key]))
                 seen.add(key)
-        # (path,offset,offset2) - (path,offset) to get offset2 incase the LLM hallucinates and gets different paths
-        remaining_keys = set(args.keys()-seen)
-        ordered.extend(((key, args[key]) for key in remaining_keys))
+
+        for key in args.keys() - seen:
+            ordered.append((key, args[key]))
 
         return ordered
 
     def render_arguments_table(self, tool_name: str, arguments: dict[str, Any]) -> Table:
-        table = Table.grid(padding=(0, 1))
+        """
+        Compact two-column grid: key (right-aligned muted) | value (code style).
+        Large content fields are summarised as <N lines · M bytes>.
+        """
+        table = Table.grid(padding=(0, 2))
         table.add_column(style="muted", justify="right", no_wrap=True)
         table.add_column(style="code", overflow="fold")
 
         for key, value in self.ordered_arguments(tool_name, arguments):
-            # Convert values into renderable text
-            if isinstance(value, str):
-                if key in ("content", "old_string", "new_string"):
-                    line_count = len(value.splitlines()) or 0
-                    byte_count = len(value.encode('utf-8', errors="replace"))
-                    value = f"<{line_count} lines . {byte_count} bytes>"
+            if isinstance(value, str) and key in ("content", "old_string", "new_string"):
+                lines = len(value.splitlines()) or 0
+                bsize = len(value.encode("utf-8", errors="replace"))
+                value = f"<{lines} lines · {bsize} bytes>"
+            if isinstance(value, bool):
+                value = str(value).lower()
 
-                if isinstance(value, bool):
-                    value = str(value)
-            table.add_row(str(key), Text(str(value), style="code"))
+            table.add_row(key, Text(str(value), style="code"))
 
         return table
 
-        # path   main.py
-        # offset 1
-        # limit  None
-        # for this look in table format
+    # ── Tool call start ───────────────────────────────────────────────────────
 
-    def tool_call_start(self, call_id: str, name: str, tool_kind: str | None, arguments: dict[str, Any]):
+    def tool_call_start(
+        self,
+        call_id: str,
+        name: str,
+        tool_kind: str | None,
+        arguments: dict[str, Any],
+    ) -> None:
         self._tool_args_by_call_id[call_id] = arguments
 
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
+        icon = _tool_icon(name)
 
         title = Text.assemble(
-            ("⏺ ", "muted"),
+            (f"{icon} ", "muted"),
             (name, "tool"),
-            ("  ", "muted"),
-            (f"#{call_id[:8]}", "muted")
+            ("  ", ""),
+            (f"#{call_id[:8]}", "dim"),
         )
 
-        # just to display the path in a relative or an absolute way
+        # Relativise path / cwd for display only (don't mutate the stored args)
         display_args = dict(arguments)
         for key in ("path", "cwd"):
-            val = display_args.get(key)  # main.py
+            val = display_args.get(key)
             if isinstance(val, str) and self.cwd:
                 display_args[key] = str(display_path_rel_to_cwd(Path(val), self.cwd))
 
-        # for a bordered box around everything
+        body = (
+            self.render_arguments_table(name, display_args)
+            if display_args
+            else Text("(no arguments)", style="muted")
+        )
+
         panel = Panel(
-            self.render_arguments_table(name, arguments) if display_args else Text(
-                "(no args)", style="muted"),
+            body,
             title=title,
             title_align="left",
-            subtitle=Text("running", style="muted"),
+            subtitle=Text(" running ", style="chip.running"),
             subtitle_align="right",
             box=box.ROUNDED,
             border_style=border_style,
-            padding=(1, 2)
+            padding=(0, 2),
         )
+
         self.console.print()
         self.console.print(panel)
 
-    # tuple is for ordered integer and code line
-    def extract_read_file_code(self, text: str) -> tuple[int, str] | None:
-        body = text
-        header_match = re.match(r"^Showing lines (\d+)-(\d+) of (\d+)\n\n", text)
+    # ── File code extraction ──────────────────────────────────────────────────
 
-        # stripping body to contain content after header
-        if header_match:
-            body = text[header_match.end():]
+    def extract_read_file_code(self, text: str) -> tuple[int, str] | None:
+        """
+        Parse the numbered-line format returned by read_file:
+            1| def main():
+            2|     pass
+        Returns (start_line, code_string) or None if format doesn't match.
+        """
+        body = text
+        header = re.match(r"^Showing lines (\d+)-(\d+) of (\d+)\n\n", text)
+        if header:
+            body = text[header.end():]
 
         code_lines: list[str] = []
         start_line: int | None = None
 
         for line in body.splitlines():
-            # 1 | def main() (eg), remember that indentation matters too
             m = re.match(r"^\s*(\d+)\|(.*)$", line)
             if not m:
                 return None
-            line_no = int(m.group(1))
+            lno = int(m.group(1))
             if start_line is None:
-                start_line = line_no
+                start_line = lno
             code_lines.append(m.group(2))
 
         if start_line is None:
@@ -293,35 +331,36 @@ class TUI:
     def guess_language(self, path: str | None) -> str:
         if not path:
             return "text"
-        suffix = Path(path).suffix.lower()
         return {
-            ".py": "python",
-            ".js": "javascript",
-            ".jsx": "jsx",
-            ".ts": "typescript",
-            ".tsx": "tsx",
-            ".json": "json",
-            ".toml": "toml",
-            ".yaml": "yaml",
-            ".yml": "yaml",
-            ".md": "markdown",
-            ".sh": "bash",
-            ".bash": "bash",
-            ".zsh": "bash",
-            ".rs": "rust",
-            ".go": "go",
-            ".java": "java",
-            ".kt": "kotlin",
+            ".py":    "python",
+            ".js":    "javascript",
+            ".jsx":   "jsx",
+            ".ts":    "typescript",
+            ".tsx":   "tsx",
+            ".json":  "json",
+            ".toml":  "toml",
+            ".yaml":  "yaml",
+            ".yml":   "yaml",
+            ".md":    "markdown",
+            ".sh":    "bash",
+            ".bash":  "bash",
+            ".zsh":   "bash",
+            ".rs":    "rust",
+            ".go":    "go",
+            ".java":  "java",
+            ".kt":    "kotlin",
             ".swift": "swift",
-            ".c": "c",
-            ".h": "c",
-            ".cpp": "cpp",
-            ".hpp": "cpp",
-            ".css": "css",
-            ".html": "html",
-            ".xml": "xml",
-            ".sql": "sql",
-        }.get(suffix, "text")
+            ".c":     "c",
+            ".h":     "c",
+            ".cpp":   "cpp",
+            ".hpp":   "cpp",
+            ".css":   "css",
+            ".html":  "html",
+            ".xml":   "xml",
+            ".sql":   "sql",
+        }.get(Path(path).suffix.lower(), "text")
+
+    # ── Welcome banner ────────────────────────────────────────────────────────
 
     def print_welcome(self, title: str, lines: list[str]) -> None:
         body = "\n".join(lines)
@@ -332,422 +371,396 @@ class TUI:
                 title_align="left",
                 border_style="border",
                 box=box.ROUNDED,
-                padding=(1, 2)
+                padding=(1, 2),
             )
         )
 
-    def tool_call_complete(self,
-                           call_id: str,
-                           name: str,
-                           tool_kind: str | None,
-                           success: bool, output: str,
-                           error: str | None,
-                           metadata: dict[str, Any] | None,
-                           diff: str | None,
-                           truncated: bool,
-                           exit_code: int | None):
+    # ── Shared block helpers ──────────────────────────────────────────────────
+
+    def _summary_line(self, parts: list[str], style: str = "muted") -> Text:
+        """Join non-empty strings with a dim separator into a single Text."""
+        t = Text(style=style)
+        non_empty = [p for p in parts if p]
+        for i, part in enumerate(non_empty):
+            t.append(part)
+            if i < len(non_empty) - 1:
+                t.append("  ·  ", style="dim")
+        return t
+
+    def _syntax_block(self, content: str, language: str = "text") -> Syntax:
+        return Syntax(content, language, theme="monokai", word_wrap=True)
+
+    def _truncated_syntax(
+        self,
+        output: str,
+        language: str = "text",
+        limit: int = 2400,
+        model: str = "openrouter/free",
+    ) -> Syntax:
+        return self._syntax_block(truncate_text(output, model, limit), language)
+
+    # ── Tool call complete ────────────────────────────────────────────────────
+
+    def tool_call_complete(
+        self,
+        call_id: str,
+        name: str,
+        tool_kind: str | None,
+        success: bool,
+        output: str,
+        error: str | None,
+        metadata: dict[str, Any] | None,
+        diff: str | None,
+        truncated: bool,
+        exit_code: int | None,
+    ) -> None:
 
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
         status_icon = "✓" if success else "✗"
-        status_style = "success" if success else "error"
+        status_style = "chip.done" if success else "chip.failed"
+        icon = _tool_icon(name)
+
         title = Text.assemble(
-            (f"{status_icon}", status_style),
+            (f"{status_icon} ", status_style),
+            (f"{icon} ", "muted"),
             (name, "tool"),
-            ("  ", "muted"),
-            (f"#{call_id[:8]}", "muted")
+            ("  ", ""),
+            (f"#{call_id[:8]}", "dim"),
         )
 
         args = self._tool_args_by_call_id.get(call_id, {})
+        meta = metadata or {}  # safe: metadata may be None
 
-        primary_path = None
-        blocks = []
-        if isinstance(metadata, dict) and isinstance(metadata.get("path"), str):
-            primary_path = metadata.get("path")
+        # primary_path is the actual path operated on (from metadata)
+        primary_path: str | None = meta.get("path") if isinstance(meta.get("path"), str) else None
 
+        blocks: list[Any] = []
+
+        # ── read_file ─────────────────────────────────────────────────────────
         if name == "read_file" and success:
             if primary_path:
                 result = self.extract_read_file_code(output)
-                if result is None:
-                    start_line, code = None, None
-                else:
-                    start_line, code = result
-                shown_start = 0
-                shown_end = 0
-                total_lines = 0
-                programming_language = ""
+                start_line, code = result if result else (None, None)
 
-                if metadata:
-                    shown_start = metadata.get("shown_start", 0)
-                    shown_end = metadata.get("shown_end", 0)
-                    total_lines = metadata.get("total_lines", 0)
-                    programming_language = self.guess_language(primary_path)
+                shown_start = meta.get("shown_start", 0)
+                shown_end = meta.get("shown_end", 0)
+                total_lines = meta.get("total_lines", 0)
+                lang = self.guess_language(primary_path)
+                rel_path = display_path_rel_to_cwd(Path(primary_path), self.cwd)
 
-                blocks.append(Text())
-
-                header_parts = [display_path_rel_to_cwd(primary_path, self.cwd)]
-                header_parts.append(" ⏺ ")
-
+                header = Text()
+                header.append(str(rel_path), style="bold aquamarine1")
                 if shown_start and shown_end and total_lines:
-                    header_parts.append(f"lines {shown_start}-{shown_end} of {total_lines}")
+                    header.append(f"  lines {shown_start}–{shown_end}", style="muted")
+                    header.append(f" of {total_lines}", style="dim")
 
-                header = "".join(header_parts)
-                blocks.append(Text(header, style="muted"))
+                blocks.append(header)
                 blocks.append(
                     Syntax(
                         code=code or "",
-                        lexer=programming_language,
+                        lexer=lang,
                         theme="monokai",
                         line_numbers=True,
-                        start_line=start_line or 0,
-                        word_wrap=True
-                    )
-                )
-            else:
-                truncate_text(output, "", 240)
-                blocks.append(Syntax(output, "text", theme="monokai", word_wrap=False))
-
-        elif name in {"write_file", "edit_file"} and success and diff:
-            output_line = output.strip() if output.strip() else "Completed"
-            blocks.append(Text(output_line, style="muted"))
-            diff_text = diff
-            diff_display = truncate_text(diff_text, "openrouter/free", 240)
-
-            blocks.append(Syntax(diff_display, 'diff', theme="monokai", word_wrap=True))
-
-            # just to display the path in a relative or an absolute way
-
-        elif name == "shell" and success:
-            command = args.get("command")
-            if isinstance(command, str) and command.strip():
-                blocks.append(Text(f'$ {command.strip()}', style="muted"))
-
-            if exit_code is not None:
-                blocks.append(Text(f"exit_code={exit_code}", style="muted"))
-
-            output_display = truncate_text(output, "openrouter/free", 2400)
-
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True
-                )
-            )
-
-        elif name == "list_dir":
-            entries = args.get("entries")
-            path = args.get("path")
-            recursive = args.get("recursive")
-            max_depth = args.get("max_depth")
-
-            summary = []
-
-            if isinstance(path, str):
-                summary.append(path)
-
-            if isinstance(entries, int):
-                summary.append(f"{entries} entries")
-
-            if recursive:
-                if isinstance(max_depth, int):
-                    summary.append(f"recursive (depth={max_depth})")
-                else:
-                    summary.append("recursive")
-
-            if summary:
-                blocks.append(Text(" . ".join(summary), style="muted"))
-
-            output_display = truncate_text(
-                output,
-                "openrouter/free",
-                2400
-            )
-
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True
-                )
-            )
-
-            if error and not success:
-                blocks.append(Text(error, style="error"))
-
-                output_display = truncate_text(output, "openrouter/free", 2400)
-
-                if output_display.strip():
-                    blocks.append(Syntax(
-                        output_display,
-                        "text",
-                        theme="monokai",
-                        word_wrap=True))
-
-                else:
-                    blocks.append(Text("(no output)", style="muted"))
-
-        elif name == "grep" and success:
-            matches = args.get("matches")
-            files_searched = args.get("files_searched")
-            summary = []
-
-            if isinstance(matches, int):
-                summary.append(f"{matches} matches found")
-            if isinstance(files_searched, int):
-                summary.append(f"{files_searched} files searched")
-
-            if summary:
-                blocks.append(Text(" . ".join(summary), style="muted"))
-
-            output_display = truncate_text(output,
-                                           "openrouter/free",
-                                           2400)
-
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True
-                )
-            )
-
-        elif name == "grep" and success:
-            matches = args.get("matches")
-
-            if isinstance(matches, int):
-                blocks.append(Text(f"{matches} files found", style="muted"))
-
-            output_display = truncate_text(output,
-                                           "openrouter/free",
-                                           2400)
-
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True
-                )
-            )
-
-        if truncated:
-            blocks.append(Text("note: tool output was truncated", style="warning"))
-
-        if not blocks:
-            if output.strip():
-                blocks.append(
-                    Syntax(
-                        truncate_text(output, "", 2400),
-                        "text",
-                        theme="monokai",
-                        word_wrap=True
-                    )
-                )
-            else:
-                blocks.append(Text("(no output)", style="muted"))
-
-        elif name == "web_search" and success:
-            results = args.get("results")
-            query = args.get("query")
-            summary = []
-            if isinstance(query, str):
-                summary.append(query)
-            if isinstance(results, int):
-                summary.append(f"{results} results")
-
-            if summary:
-                blocks.append(Text(" • ".join(summary), style="muted"))
-
-            output_display = truncate_text(
-                output,
-                "openrouter/free",
-                2400
-            )
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True,
-                )
-            )
-
-        elif name == "web_fetch" and success:
-            status_code = args.get("status_code")
-            content_length = args.get("content_length")
-            url = args.get("url")
-            summary = []
-            if isinstance(status_code, str):
-                summary.append(str(status_code))
-            if isinstance(content_length, int):
-                summary.append(f"{content_length} bytes")
-            if isinstance(url, str):
-                summary.append(url)
-
-            if summary:
-                blocks.append(Text(" • ".join(summary), style="muted"))
-
-            output_display = truncate_text(
-                output,
-                "openrouter/free",
-                2400
-            )
-            blocks.append(
-                Syntax(
-                    output_display,
-                    "text",
-                    theme="monokai",
-                    word_wrap=True,
-                )
-            )
-
-        elif name == "todos" and success:
-            todos = {}
-            groups = {}
-            if metadata and metadata.get("type") == "todos":
-                todos = metadata.get("todos", {})
-
-            if not todos:
-                blocks.append(Text("No todos", style="bold yellow"))
-            else:
-                groups = {
-                    "pending": [],
-                    "in_progress": [],
-                    "completed": []
-                }
-
-                for tid, t in todos.items():
-                    groups[t["status"]].append((tid, t))
-
-                for status, items in groups.items():
-                    if not items:
-                        continue
-
-                    if status == "pending":
-                        color = "yellow"
-                        icon = "⏳"
-                    elif status == "in_progress":
-                        color = "cyan"
-                        icon = "🔄"
-                    else:
-                        color = "green"
-                        icon = "✔"
-
-                    blocks.append(Text(f"{icon} {status.upper()}", style=f"bold {color}"))
-
-                    table = Table(
-                        show_header=True,
-                        header_style="bold magenta",
-                        border_style=color,
-                        box=box.ROUNDED
-                    )
-                    table.add_column("ID", style="dim", width=10)
-                    table.add_column("Priority", justify="center")
-                    table.add_column("Task", overflow="fold")
-
-                    for tid, t in items:
-                        priority = t["priority"]
-                        if priority == "high":
-                            p_text = Text(priority, style="bold red")
-                        elif priority == "medium":
-                            p_text = Text(priority, style="yellow")
-                        else:
-                            p_text = Text(priority, style="green")
-
-                        table.add_row(
-                            tid,
-                            p_text,
-                            t["content"]
-                        )
-
-                    blocks.append(table)
-
-        elif name == "memory" and success:
-            action = args.get('action')
-            key = args.get('key')
-            found = args.get("found")
-
-            summary = []
-
-            if isinstance(action, str) and action:
-                summary.append(action)
-            if isinstance(key, str) and key:
-                summary.append(key)
-            if isinstance(found, bool) and found is not None:
-                summary.append("found" if found else "missing")
-
-            if summary:
-                blocks.append(Text(".".join(summary), style="muted"))
-
-        elif name.startswith("subagent_"):
-
-            agent_name = args.get("agent", "unknown")
-            termination = args.get("termination", "")
-            tools_used = args.get("tools_used", [])
-            error_msg = args.get("error")
-
-            # Header
-            blocks.append(
-                Panel(
-                    f"🤖 {agent_name}\n"
-                    f"Termination: {termination}\n"
-                    f"Tools: {', '.join(tools_used) if tools_used else 'None'}",
-                    style="cyan",
-                    title="Sub-Agent"
-                )
-            )
-            if not success:
-                blocks.append(
-                    Panel(
-                        error_msg or output,
-                        title="❌ Error",
-                        border_style="red"
-                    )
-                )
-            else:
-                blocks.append(
-                    Panel(
-                        Markdown(output),
-                        title="📄 Result",
-                        border_style="green"
-                    )
-                )
-
-        else:
-            # fallback if no tool call is executed or for subagents
-            if error and not success:
-                blocks.append(Text(error, style='error'))
-
-            output_display = truncate_text(
-                output,
-                "openrouter/free",
-                2400
-            )
-            if output_display.strip():
-                blocks.append(
-                    Syntax(
-                        output_display,
-                        "text",
-                        theme="monokai",
+                        start_line=start_line or 1,
                         word_wrap=True,
                     )
                 )
             else:
+                blocks.append(self._truncated_syntax(output))
+
+        # ── write_file / edit_file ────────────────────────────────────────────
+        elif name in {"write_file", "edit_file"} and success:
+            msg = output.strip() or "Completed"
+            path_str = meta.get("path", "")
+
+            if path_str:
+                t = Text()
+                t.append(str(display_path_rel_to_cwd(Path(path_str), self.cwd)), style="bold gold1")
+                t.append(f"  {msg}", style="muted")
+                blocks.append(t)
+            else:
+                blocks.append(Text(msg, style="muted"))
+
+            if diff:
+                blocks.append(self._syntax_block(truncate_text(
+                    diff, "openrouter/free", 2400), "diff"))
+
+        # ── shell ─────────────────────────────────────────────────────────────
+        elif name == "shell":
+            command = args.get("command", "")
+            if isinstance(command, str) and command.strip():
+                cmd_text = Text()
+                cmd_text.append("$ ", style="bright_magenta bold")
+                cmd_text.append(command.strip(), style="code")
+                blocks.append(cmd_text)
+
+            if exit_code is not None:
+                ec_style = "success" if exit_code == 0 else "error"
+                ec_text = Text()
+                ec_text.append("exit ", style="dim")
+                ec_text.append(str(exit_code), style=ec_style)
+                blocks.append(ec_text)
+
+            if not success and error:
+                blocks.append(Text(error, style="error"))
+
+            if output.strip():
+                blocks.append(self._truncated_syntax(output))
+
+        # ── list_dir ──────────────────────────────────────────────────────────
+        elif name == "list_dir":
+            path = args.get("path", "")
+            recursive = args.get("recursive")
+            max_depth = args.get("max_depth")
+            entries = meta.get("entries")   # result → metadata
+
+            parts: list[str] = []
+            if path:
+                parts.append(str(display_path_rel_to_cwd(Path(path), self.cwd)))
+            if isinstance(entries, int):
+                parts.append(f"{entries} entries")
+            if recursive:
+                parts.append(
+                    f"recursive (depth={max_depth})" if isinstance(max_depth, int) else "recursive"
+                )
+
+            if parts:
+                blocks.append(self._summary_line(parts))
+
+            if not success and error:
+                blocks.append(Text(error, style="error"))
+
+            if output.strip():
+                blocks.append(self._truncated_syntax(output))
+            elif not blocks:
                 blocks.append(Text("(no output)", style="muted"))
 
-        # for a bordered box around everything
+        # ── grep ──────────────────────────────────────────────────────────────
+        elif name == "grep":
+            matches = meta.get("matches")        # result → metadata
+            files_searched = meta.get("files_searched")  # result → metadata
+            pattern = args.get("pattern", "")
+            path = args.get("path", "")
+
+            parts = []
+            if pattern:
+                parts.append(f"/{pattern}/")
+            if path:
+                parts.append(str(display_path_rel_to_cwd(Path(path), self.cwd)))
+            if isinstance(matches, int):
+                parts.append(f"{matches} match{'es' if matches != 1 else ''}")
+            if isinstance(files_searched, int):
+                parts.append(f"{files_searched} files")
+
+            if parts:
+                blocks.append(self._summary_line(parts))
+
+            if success and output.strip():
+                blocks.append(self._truncated_syntax(output))
+            elif not success and error:
+                blocks.append(Text(error, style="error"))
+
+        # ── web_search ────────────────────────────────────────────────────────
+        elif name == "web_search":
+            query = args.get("query", "")  # input  → args
+            results = meta.get("results")    # result → metadata
+
+            parts = []
+            if query:
+                parts.append(f'"{query}"')
+            if isinstance(results, int):
+                parts.append(f"{results} results")
+
+            if parts:
+                blocks.append(self._summary_line(parts))
+
+            if output.strip():
+                blocks.append(self._truncated_syntax(output))
+            elif not success and error:
+                blocks.append(Text(error, style="error"))
+
+        # ── web_fetch ─────────────────────────────────────────────────────────
+        elif name == "web_fetch":
+            url = args.get("url", "")        # input  → args
+            status_code = meta.get("status_code")    # result → metadata
+            content_length = meta.get("content_length")  # result → metadata
+
+            summary = Text()
+            if url:
+                summary.append(url, style="muted")
+            if status_code is not None:
+                sc_str = str(status_code)
+                sc_style = "success" if sc_str.startswith("2") else "error"
+                summary.append("  ·  ", style="dim")
+                summary.append(sc_str, style=sc_style)
+            if isinstance(content_length, int):
+                summary.append("  ·  ", style="dim")
+                summary.append(_fmt_bytes(content_length), style="muted")
+
+            if summary.plain:
+                blocks.append(summary)
+
+            if output.strip():
+                blocks.append(self._truncated_syntax(output))
+            elif not success and error:
+                blocks.append(Text(error, style="error"))
+
+        # ── todos ─────────────────────────────────────────────────────────────
+        elif name == "todos" and success:
+            todos: dict = {}
+            if meta.get("type") == "todos":
+                todos = meta.get("todos", {})
+
+            if not todos:
+                blocks.append(Text("  No todos found.", style="muted italic"))
+            else:
+                groups: dict[str, list] = {
+                    "pending":     [],
+                    "in_progress": [],
+                    "completed":   [],
+                }
+                for tid, t in todos.items():
+                    groups[t["status"]].append((tid, t))
+
+                STATUS_CONFIG = {
+                    "pending":     ("⏳", "yellow",         "Pending"),
+                    "in_progress": ("🔄", "cornflower_blue", "In Progress"),
+                    "completed":   ("✔",  "spring_green3",  "Completed"),
+                }
+                PRIORITY_STYLES = {
+                    "high":   ("●", "bright_red"),
+                    "medium": ("●", "yellow"),
+                    "low":    ("●", "spring_green3"),
+                }
+
+                for status, (s_icon, color, label) in STATUS_CONFIG.items():
+                    items = groups[status]
+                    if not items:
+                        continue
+
+                    section_title = Text()
+                    section_title.append(f"{s_icon} ", style=color)
+                    section_title.append(label, style=f"bold {color}")
+                    blocks.append(Padding(section_title, (1, 0, 0, 0)))
+
+                    tbl = Table(
+                        show_header=True,
+                        header_style=f"bold {color}",
+                        border_style="dim",
+                        box=box.SIMPLE_HEAD,
+                        padding=(0, 1),
+                    )
+                    tbl.add_column("ID",       style="dim",  no_wrap=True, width=12)
+                    tbl.add_column("Priority", justify="center", width=10)
+                    tbl.add_column("Task",     overflow="fold")
+
+                    for tid, t in items:
+                        prio = t.get("priority", "low")
+                        dot, p_style = PRIORITY_STYLES.get(prio, ("●", "muted"))
+                        p_text = Text()
+                        p_text.append(f"{dot} ", style=p_style)
+                        p_text.append(prio, style=p_style)
+                        tbl.add_row(tid, p_text, t.get("content", ""))
+
+                    blocks.append(tbl)
+
+        # ── memory ────────────────────────────────────────────────────────────
+        elif name == "memory" and success:
+            action = args.get("action", "")
+            key = args.get("key", "")
+            found = meta.get("found")  # result → metadata
+
+            parts = []
+            if action:
+                parts.append(action)
+            if key:
+                parts.append(key)
+            if isinstance(found, bool):
+                parts.append("found" if found else "not found")
+
+            if parts:
+                blocks.append(self._summary_line(parts))
+
+            if output.strip():
+                blocks.append(self._truncated_syntax(output))
+
+        # ── subagent_* ────────────────────────────────────────────────────────
+        elif name.startswith("subagent_"):
+            agent_name = meta.get("agent", "unknown")
+            termination = meta.get("termination", "—")
+            tools_used = meta.get("tools_used", [])
+            error_msg = meta.get("error")
+
+            clean_output = normalize_markdown_subagent(output)
+
+            # Compact info line — no nested panel, keeps visual nesting shallow
+            info = Text()
+            info.append("agent  ", style="dim")
+            info.append(str(agent_name), style="bold cyan")
+            info.append("   term  ", style="dim")
+            info.append(str(termination), style="muted")
+            if tools_used:
+                info.append("   tools  ", style="dim")
+                info.append(", ".join(tools_used), style="muted")
+            blocks.append(info)
+            blocks.append(Text())  # blank spacer
+
+            if not success:
+                blocks.append(
+                    Panel(
+                        Text(error_msg or output, style="error"),
+                        title="Error",
+                        border_style="bright_red",
+                        box=box.ROUNDED,
+                        padding=(0, 1),
+                    )
+                )
+            else:
+                blocks.append(
+                    Panel(
+                        Markdown(clean_output, code_theme="monokai"),
+                        title="Result",
+                        border_style="spring_green3",
+                        box=box.ROUNDED,
+                        padding=(1, 2),
+                    )
+                )
+
+        # ── fallback ──────────────────────────────────────────────────────────
+        else:
+            if not success and error:
+                blocks.append(Text(error, style="error"))
+
+            if output.strip():
+                blocks.append(self._truncated_syntax(output))
+            else:
+                blocks.append(Text("(no output)", style="muted"))
+
+        # ── Truncation notice (always appended last) ──────────────────────────
+        if truncated:
+            trunc = Text()
+            trunc.append("⚠ ", style="warning")
+            trunc.append("output was truncated", style="muted italic")
+            blocks.append(trunc)
+
+        # ── Empty guard ───────────────────────────────────────────────────────
+        if not blocks:
+            blocks.append(Text("(no output)", style="muted"))
+
+        # ── Completion panel ──────────────────────────────────────────────────
+        subtitle = Text()
+        subtitle.append(f" {'done' if success else 'failed'} ", style=status_style)
+
         panel = Panel(
             Group(*blocks),
             title=title,
             title_align="left",
-            subtitle=Text("done" if success else "failed", style=status_style),
+            subtitle=subtitle,
             subtitle_align="right",
             box=box.ROUNDED,
             border_style=border_style,
-            padding=(1, 2)
+            padding=(1, 2),
         )
+
         self.console.print()
         self.console.print(panel)
