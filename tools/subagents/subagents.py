@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 # subagents are specialized tools only
 
+
 class SubAgentParams(BaseModel):
     # actual runtime prompt given by LLM
     goal: str = Field(..., description="The specific task or goal for the subagent to accomplish.")
@@ -111,5 +112,18 @@ class SubAgentTool(Tool):
         """
 
         if error:
-            return ToolResult.error_result(result)
-        return ToolResult.success_result(result)
+            return ToolResult.error_result(
+                result,
+                metadata={
+                    "agent": self.definition.name,
+                    "termination": terminate_response,
+                    "tools_used": tool_calls,
+                    "error": error,
+                }
+            )
+        return ToolResult.success_result(
+            result,
+            metadata={"agent": self.definition.name,
+                      "termination": terminate_response,
+                      "tools_used": tool_calls}
+        )

@@ -681,6 +681,52 @@ class TUI:
 
             if summary:
                 blocks.append(Text(".".join(summary), style="muted"))
+
+        elif name.startswith("subagent_") and success:
+
+            subagent_name = name.replace("subagent_", "")
+
+            blocks.append(Text())
+            blocks.append(Text(f"Sub-Agent: {subagent_name}", style="bold cyan"))
+            blocks.append(Text("━" * 50, style="dim"))
+
+            output_display = truncate_text(output, "openrouter/free", 2400)
+
+            lines = output_display.strip().splitlines()
+
+            termination = None
+            tools_used = None
+            result_lines = []
+
+            for line in lines:
+                if "Termination:" in line:
+                    termination = line.strip()
+                elif "Tools called:" in line:
+                    tools_used = line.strip()
+                elif "Result:" in line:
+                    continue
+                else:
+                    result_lines.append(line)
+
+            if termination:
+                blocks.append(Text(termination, style="yellow"))
+
+            if tools_used:
+                blocks.append(Text(tools_used, style="magenta"))
+
+            blocks.append(Text())
+            blocks.append(Text("Result:", style="bold green"))
+
+            result_text = "\n".join(result_lines).strip()
+
+            blocks.append(
+                Syntax(
+                    result_text if result_text else "(no result)",
+                    "markdown",
+                    theme="monokai",
+                    word_wrap=True
+                )
+            )
         else:
             # fallback if no tool call is executed
             output_display = truncate_text(

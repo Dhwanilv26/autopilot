@@ -28,6 +28,8 @@ OUTPUT FORMAT:
 You may use read_file, grep, and list_dir to investigate.
 Do NOT modify files.""",
     allowed_tools=["read_file", "grep", "list_dir"],
+    max_turns=10,
+    timeout_seconds=300
 )
 
 
@@ -54,6 +56,8 @@ OUTPUT FORMAT:
 Use list_dir, read_file, and grep to explore.
 Do NOT modify any files.""",
     allowed_tools=["read_file", "grep", "list_dir"],
+    max_turns=10,
+    timeout_seconds=300
 )
 
 
@@ -84,6 +88,8 @@ OUTPUT FORMAT:
 Use read_file and grep to inspect the codebase.
 Do NOT modify any files.""",
     allowed_tools=["read_file", "grep"],
+    max_turns=10,
+    timeout_seconds=300
 )
 
 
@@ -109,6 +115,8 @@ OUTPUT FORMAT:
 Use read_file and grep to analyze code.
 Do NOT modify files.""",
     allowed_tools=["read_file", "grep"],
+    max_turns=10,
+    timeout_seconds=300
 )
 
 
@@ -138,6 +146,8 @@ OUTPUT FORMAT:
 Use read_file to understand the code.
 Do NOT modify any files.""",
     allowed_tools=["read_file"],
+    max_turns=10,
+    timeout_seconds=300
 )
 
 
@@ -167,6 +177,8 @@ OUTPUT FORMAT:
 Use read_file and grep to analyze.
 Do NOT modify files.""",
     allowed_tools=["read_file", "grep"],
+    max_turns=10,
+    timeout_seconds=300
 )
 
 

@@ -18,6 +18,7 @@ class Session:
             config=config,
             user_memory=self._load_memory(),
             tools=self.tool_registry.get_tools())
+        # subagent banate time -> new agent to obviously new session
         self.session_id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
