@@ -9,16 +9,20 @@ from config.config import Config
 from tools.base import Tool, ToolInvocation, ToolResult
 from dataclasses import dataclass
 
+# subagents are specialized tools only
 
 class SubAgentParams(BaseModel):
+    # actual runtime prompt given by LLM
     goal: str = Field(..., description="The specific task or goal for the subagent to accomplish.")
+    # (e.g, please find the bugs and resolve them in main.py)
 
 
 @dataclass
 class SubAgentDefinition:
     name: str
     description: str
-    goal_prompt: str
+    goal_prompt: str  # static and defined by the developer
+    # (e.g, your job is to only find bugs and resolve them)
     allowed_tools: list[str] | None = None
     max_turns: int = 20
     timeout_seconds: float = 600
@@ -30,11 +34,11 @@ class SubAgentTool(Tool):
         self.definition = definition
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # type: ignore
         return f"subagent_{self.definition.name}"
 
     @property
-    def description(self) -> str:
+    def description(self) -> str:  # type: ignore
         return f"subagent_{self.definition.description}"
 
     @property
@@ -76,7 +80,8 @@ class SubAgentTool(Tool):
         error = None
         terminate_response = "goal"
         try:
-            async with Agent(self.config) as agent:
+            async with Agent(subagent_config) as agent:
+                # complete new agent with new session, prompt is the only context for the subagent
                 deadline = asyncio.get_event_loop().time()+self.definition.timeout_seconds
                 async for event in agent.run(prompt):
                     if asyncio.get_event_loop().time() > deadline:
