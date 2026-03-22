@@ -1,3 +1,8 @@
-[mcp_servers.filesystem]
-command = "npx"
-args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/dhwanil/Desktop/ai-agent", "/tmp"]
+# [mcp_servers.filesystem]
+# command = "npx"
+# args = [
+#     "-y",
+#     "@modelcontextprotocol/server-filesystem",
+#     "/Users/dhwanil/Desktop/ai-agent",
+#     "/tmp",
+# ]

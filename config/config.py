@@ -24,7 +24,7 @@ class MCPServerConfig(BaseModel):
     enabled: bool = True
     startup_timeout_sec: float = 10
 
-    # stdio transport
+    # stdio transport (for local mcp (command and args are required))
     command: str | None = None
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] = Field(default_factory=dict)
@@ -33,7 +33,7 @@ class MCPServerConfig(BaseModel):
     # HTTP/SSE transport
     url: str | None = None
 
-    @model_validator(mode='after')
+    @model_validator(mode='after')  # runs after object creation
     def validate_transport(self) -> MCPServerConfig:
         has_command = self.command is not None
         has_url = self.url is not None
@@ -56,6 +56,7 @@ class Config (BaseModel):
     max_turns: int = 100
     max_tool_output_tokens: int = 50_000
 
+    # mcp server name and the whole class to describe it
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
 
     allowed_tools: list[str] | None = Field(
