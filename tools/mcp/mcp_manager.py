@@ -1,7 +1,9 @@
 import asyncio
 
 from config.config import Config
-from tools.mcp.client import MCPClient
+from tools.mcp.client import MCPClient, MCPServerStatus
+from tools.mcp.mcp_tool import MCPTool
+from tools.registry import ToolRegistry
 
 
 class MCPManager:
@@ -26,15 +28,43 @@ class MCPManager:
                 config=server_config,
                 cwd=self.config.cwd
             )
+        # connection tasks are just initalized here, and not executed (they are just coroutines as of now)
 
         connection_tasks = [
             asyncio.wait_for(
                 client.connect(),
                 timeout=client.config.startup_timeout_sec
             )
-            for name, client in self._clients.items()
+            for client in self._clients.values()
         ]
 
-        await asyncio.gather(*connection_tasks, return_exceptions=True)
+        try:
+            # asyncio.gather runs multiple coroutines concurrently
+            # errors are returned instead of crashing
+            await asyncio.wait_for(
+                asyncio.gather(*connection_tasks, return_exceptions=True),
+                timeout=15
+            )
+        except asyncio.TimeoutError:
+            print("Global timeout: some MCP servers took too long")
 
         self._initialized = True
+
+    def register_tools(self, registry: ToolRegistry) -> int:
+        count = 0
+
+        for client in self._clients.values():
+            if client.status != MCPServerStatus.CONNECTED:
+                continue
+
+            for tool_info in client.tools:
+                mcp_tool = MCPTool(
+                    tool_info=tool_info,
+                    client=client,
+                    config=self.config,
+                    name=f"{client.name}__{tool_info.name}"
+                )
+                registry.register_mcp_tool(mcp_tool)
+                count += 1
+
+        return count

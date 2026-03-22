@@ -36,6 +36,10 @@ class MCPClient:
 
         self._tools: dict[str, MCPServerInfo] = dict()
 
+    @property
+    def tools(self) -> list[MCPServerInfo]:
+        return list(self._tools.values())
+
     def _create_transport(self) -> StdioTransport | SSETransport:
         if self.config.command:
             env = os.environ.copy()
@@ -47,7 +51,7 @@ class MCPClient:
                 cwd=str(self.config.cwd or self.cwd)
             )
         else:
-            return SSETransport(url=self.config.url)
+            return SSETransport(url=self.config.url)  # type: ignore
 
     async def connect(self) -> None:
         if self.status == MCPServerStatus.CONNECTED:
@@ -82,3 +86,21 @@ class MCPClient:
 
         self._tools.clear()
         self.status = MCPServerStatus.DISCONNECTED
+
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]):
+        if not self._client or self.status != MCPServerStatus.CONNECTED:
+            raise RuntimeError(f"not connected to server {self.name}")
+
+        result = await self._client.call_tool(tool_name, arguments)
+
+        output = []
+        for item in result.content:
+            if hasattr(item, "text"):
+                output.append(item.text)  # type: ignore
+            else:
+                output.append(str(item))
+
+        return {
+            "output": "\n".join(output),
+            "is_error": result.is_error
+        }
