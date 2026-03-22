@@ -16,10 +16,15 @@ class Agent:
         self.config = config
 
     async def run(self, message: str):
+        assert self.session is not None
+        assert self.session.context_manager is not None
         final_response = None
         yield AgentEvent.agent_start(message)
         if not self.session:
             raise RuntimeError("Session missing")
+
+        if self.session.context_manager is None:
+            raise RuntimeError("Context manager not initialized")
 
         self.session.context_manager.add_user_message(message)
 
@@ -54,6 +59,9 @@ class Agent:
             tool_schemas = self.session.tool_registry.get_schemas()
 
             tool_calls: list[ToolCall] = []
+
+            assert self.session is not None
+            assert self.session.context_manager is not None
 
             async for event in self.session.client.chat_completion(
                     messages=self.session.context_manager.get_messages(),
@@ -137,6 +145,9 @@ class Agent:
     # __ is used for reserved keywords and methods in python, aenter is for async enter
 
     async def __aenter__(self) -> Agent:
+        if self.session is None:
+            raise RuntimeError("Session not initialized")
+        await self.session.initialize()
         return self
 
     async def __aexit__(self,
