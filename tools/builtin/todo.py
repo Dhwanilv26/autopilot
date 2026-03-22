@@ -23,6 +23,7 @@ class TodosParams(BaseModel):
     #         real array.  Detect that and parse it transparently so the tool
     #         never blows up with "Input should be a valid list".
     @field_validator("contents", mode="before")
+    # coerce contents is the field validator here (field validator se custom validation rules bana sakte)
     @classmethod
     def coerce_contents(cls, v):
         if isinstance(v, str):
@@ -89,7 +90,7 @@ assistant message — call the tool directly.
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _now(self) -> str:
-        return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def _validate_priority(self, p) -> str:
         if not p:
@@ -131,7 +132,7 @@ assistant message — call the tool directly.
         for status, group_items in groups.items():
             if not group_items:
                 continue
-
+            # * is just used to destructure all the lens obtained e.g, [2,5,3]
             id_w = max(len("ID"),       *(len(tid) for tid, _ in group_items))
             pri_w = max(len("PRIORITY"), *(len(t["priority"]) for _,   t in group_items))
             tsk_w = min(
