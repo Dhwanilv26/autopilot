@@ -48,7 +48,8 @@ class MCPClient:
                 command=self.config.command,
                 args=list(self.config.args),
                 env=env,
-                cwd=str(self.config.cwd or self.cwd)
+                cwd=str(self.config.cwd or self.cwd),
+                log_file=Path(os.devnull)
             )
         else:
             return SSETransport(url=self.config.url)  # type: ignore
