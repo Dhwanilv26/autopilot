@@ -15,7 +15,9 @@ class MCPManager:
     async def initialize(self) -> None:
         if self._initialized:
             return
+        # print("CONFIG OBJECT:", self.config)
         mcp_configs = self.config.mcp_servers
+        # print("MCP SERVERS:", mcp_configs)
 
         if not mcp_configs:
             return
