@@ -6,3 +6,9 @@ args = [
     "/Users/dhwanil/Desktop/agentic-cli",
     "/tmp",
 ]
+
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+env = { GITHUB_TOKEN = "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" }

@@ -15,13 +15,14 @@ class MCPServerStatus(str, Enum):
     CONNECTING = "connecting"
     CONNECTED = "connected"
     ERROR = "error"
-# mcpserver refers to the client conection state to the server
 
 
 @dataclass
 class MCPServerInfo:
     name: str
     description: str
+    # Full inputSchema as received from the MCP server — preserved verbatim
+    # so the LLM gets every type constraint, enum, description, and example.
     input_schema: dict[str, Any] = field(default_factory=dict)
     server_name: str = ""
 
@@ -33,8 +34,7 @@ class MCPClient:
         self.cwd = cwd
         self.status = MCPServerStatus.DISCONNECTED
         self._client: Client | None = None
-
-        self._tools: dict[str, MCPServerInfo] = dict()
+        self._tools: dict[str, MCPServerInfo] = {}
 
     @property
     def tools(self) -> list[MCPServerInfo]:
@@ -49,31 +49,43 @@ class MCPClient:
                 args=list(self.config.args),
                 env=env,
                 cwd=str(self.config.cwd or self.cwd),
-                log_file=Path(os.devnull)
+                log_file=Path(os.devnull),
             )
         else:
             return SSETransport(url=self.config.url)  # type: ignore
 
+    def _extract_input_schema(self, tool) -> dict[str, Any]:
+        """
+        fastmcp may expose the schema as either camelCase (inputSchema) or
+        snake_case (input_schema) depending on the version. Try both so we
+        never silently drop property descriptions and type constraints.
+        """
+        for attr in ("inputSchema", "input_schema"):
+            schema = getattr(tool, attr, None)
+            if schema and isinstance(schema, dict):
+                return schema
+        return {}
+
     async def connect(self) -> None:
+        # Idempotent — safe to call multiple times
         if self.status == MCPServerStatus.CONNECTED:
-            return  # singleton connected instance chahiye
+            return
         self.status = MCPServerStatus.CONNECTING
 
-        # with is not used here as aexit so auto close ho jaayega connection (hame persistent connection chahiye)
+        # __aenter__ / __aexit__ used directly (not `async with`) so the
+        # connection stays alive for the lifetime of the process.
         try:
             self._client = Client(transport=self._create_transport())
             await self._client.__aenter__()
 
             tool_result = await self._client.list_tools()
             for tool in tool_result:
+                schema = self._extract_input_schema(tool)
                 self._tools[tool.name] = MCPServerInfo(
                     name=tool.name,
                     description=tool.description or "",
-                    input_schema=(
-                        # some servers dont provide inputschema
-                        tool.inputSchema if hasattr(tool, "inputSchema") else {}
-                    ),
-                    server_name=self.name
+                    input_schema=schema,
+                    server_name=self.name,
                 )
             self.status = MCPServerStatus.CONNECTED
         except Exception:
@@ -84,24 +96,26 @@ class MCPClient:
         if self._client:
             await self._client.__aexit__(None, None, None)
             self._client = None
-
         self._tools.clear()
         self.status = MCPServerStatus.DISCONNECTED
 
-    async def call_tool(self, tool_name: str, arguments: dict[str, Any]):
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if not self._client or self.status != MCPServerStatus.CONNECTED:
-            raise RuntimeError(f"not connected to server {self.name}")
+            raise RuntimeError(
+                f"MCP server '{self.name}' is not connected "
+                f"(status={self.status.value})"
+            )
 
         result = await self._client.call_tool(tool_name, arguments)
 
-        output = []
+        output_parts: list[str] = []
         for item in result.content:
             if hasattr(item, "text"):
-                output.append(item.text)  # type: ignore
+                output_parts.append(item.text)  # type: ignore
             else:
-                output.append(str(item))
+                output_parts.append(str(item))
 
         return {
-            "output": "\n".join(output),
-            "is_error": result.is_error
+            "output":   "\n".join(output_parts),
+            "is_error": result.is_error,
         }
