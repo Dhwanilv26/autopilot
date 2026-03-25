@@ -89,7 +89,7 @@ class ChatCompactor:
         try:
             summary = ""
             usage = None
-
+            # telling agent to run for the compressed messages now and return the summary and the token usage
             async for event in self.client.chat_completion(
                 compression_messages,
                 stream=False

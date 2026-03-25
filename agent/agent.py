@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 from agent.events import AgentEvent, AgentEventType
-from client.response import StreamEventType, ToolCall, ToolResultMessage
+from client.response import StreamEventType, TokenUsage, ToolCall, ToolResultMessage
 from config.config import Config
 import json
 from agent.session import Session
@@ -53,12 +53,27 @@ class Agent:
             response_text = ""
             # print(self.context_manager.get_messages())
 
+            # check for context overflow
+
             if not self.session.client:
                 raise RuntimeError("agent must be used in a 'async with' block")
+
+            assert self.session.context_manager is not None
+
+            if self.session.context_manager.needs_compression():
+                summary, usage = await self.session.chat_compactor.compress(
+                    self.session.context_manager
+                )
+                assert usage is not None
+
+                if summary:
+                    self.session.context_manager.set_latest_usage(usage)
+                    self.session.context_manager.add_usage(usage)
 
             tool_schemas = self.session.tool_registry.get_schemas()
 
             tool_calls: list[ToolCall] = []
+            usage: TokenUsage | None = None
 
             assert self.session is not None
             assert self.session.context_manager is not None
@@ -82,6 +97,10 @@ class Agent:
 
                 elif event.type == StreamEventType.ERROR:
                     yield AgentEvent.agent_end(event.error or "Unknown error occured.")
+
+                elif event.type == StreamEventType.MESSAGE_COMPLETE:
+                    usage = event.usage
+
             # print("response_text is this", response_text)
             self.session.context_manager.add_assistant_message(
                 response_text,
@@ -106,6 +125,9 @@ class Agent:
                 yield AgentEvent.text_complete(response_text)
 
             if not tool_calls:
+                if usage:
+                    self.session.context_manager.set_latest_usage(usage)
+                    self.session.context_manager.add_usage(usage)
                 return
 
             tool_call_results: list[ToolResultMessage] = []
@@ -141,6 +163,10 @@ class Agent:
                     tool_result.tool_call_id,
                     tool_result.content
                 )
+
+            if usage:
+                self.session.context_manager.set_latest_usage(usage)
+                self.session.context_manager.add_usage(usage)
 
     # __ is used for reserved keywords and methods in python, aenter is for async enter
 

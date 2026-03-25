@@ -1,4 +1,5 @@
 from typing import Any
+from client.response import TokenUsage
 from config.config import Config
 from prompts.system import get_system_prompt
 from dataclasses import dataclass, field
@@ -35,6 +36,9 @@ class ContextManager:
         self._system_prompt = get_system_prompt(config, user_memory, tools)
         self._model_name = "openrouter/free"
         self._messages: list[MessageItem] = []
+        self._latest_usage = TokenUsage()
+        self._total_usage = TokenUsage()
+        self.config = config
 
     # token count varies for each model and provider
 
@@ -82,3 +86,16 @@ class ContextManager:
             messages.append(item.to_dict())
 
         return messages
+
+    def needs_compression(self) -> bool:
+        context_limit = self.config.model.context_window
+        current_tokens = self._latest_usage.total_tokens
+
+        return current_tokens > (context_limit*0.8)
+        # not utlising whole context window, as tool results and big operations cant be truncated that much, so to remain on a safer side
+
+    def set_latest_usage(self, usage: TokenUsage):
+        self._latest_usage = usage
+
+    def add_usage(self, usage: TokenUsage):
+        self._total_usage += usage
