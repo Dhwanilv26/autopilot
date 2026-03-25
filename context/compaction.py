@@ -11,10 +11,14 @@ class ChatCompactor:
         self.client = client
 
     def _format_history_for_compaction(self, messages: list[dict[str, Any]]) -> str:
+        # tool → 2000 chars
+        # assistant → 3000 chars
+        # user → 1500 chars
 
         output = ['Here is the conversation that needs to be continued: \n']
 
         for msg in messages:
+            # we are running through each msg (so sabka hi role and content hoga na)
             role = msg.get("role", "")
             content = msg.get("content", "")
 
@@ -23,6 +27,7 @@ class ChatCompactor:
 
             if role == "tool":
                 # not adding actual toolcall to save TOKENS ofc
+                # tool role mai actual tool output hoga
                 tool_id = msg.get("tool_call_id", "unknown")
 
                 truncated = content[:2000] if len(content) > 2000 else content
@@ -33,6 +38,7 @@ class ChatCompactor:
                 output.append(f"[Tool result ({tool_id})]:\n{truncated}")
 
             elif role == "assistant":
+                # ONLY ASSISTANT HAS THE CAPABILITIES TO CALL THE TOOLS BASED ON ITS REASONING CAPABILITES (SEE SCHEMA @ EOF)
                 tool_details = []
                 truncated = ""
                 if content:
@@ -41,7 +47,7 @@ class ChatCompactor:
                     if len(content) > 3000:
                         truncated += "\n... [response truncateed]"
 
-                output.append(f"Assitant: \n{truncated}")
+                output.append(f"Assistant: \n{truncated}")
                 if msg.get("tool_calls"):
                     for tc in msg["tool_calls"]:
                         func = tc.get("function", {})
@@ -52,9 +58,9 @@ class ChatCompactor:
                             args = args[:500]
                         tool_details.append(f" {name}({args})")
 
-                output.append("assisant called tools:\n" + "\n".join(tool_details))
+                output.append("assistant called tools:\n" + "\n".join(tool_details))
 
-            else:
+            else:  # user role
                 truncated = content[:1500] if len(content) > 1500 else content
                 if len(content) > 1500:
                     truncated += "\n... [response truncated]"
@@ -83,7 +89,7 @@ class ChatCompactor:
         try:
             summary = ""
             usage = None
-            
+
             async for event in self.client.chat_completion(
                 compression_messages,
                 stream=False
@@ -99,3 +105,19 @@ class ChatCompactor:
             return summary, usage
         except Exception:
             return None, None
+
+
+# {
+#     "role": "assistant",
+#     "content": None,  # or partial text
+#     "tool_calls": [
+#         {
+#             "id": "call_1",
+#             "type": "function",
+#             "function": {
+#                 "name": "get_weather",
+#                 "arguments": "{\"city\": \"Ahmedabad\"}"
+#             }
+#         }
+#     ]
+# }
