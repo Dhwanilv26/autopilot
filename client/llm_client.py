@@ -60,7 +60,7 @@ class LLMClient:
         client = self.get_client()
         # msgs,stream sab aa gaya kwargs mai
         kwargs = {
-            "model": "openrouter/free",
+            "model": self.config.model_name,
             "messages": messages,
             "stream": stream
         }

@@ -18,8 +18,8 @@ console = get_console()
 class CLI:
     def __init__(self, config: Config):
         self.agent: Agent | None = None
-        self.tui = TUI(console)
         self.config = config
+        self.tui = TUI(config, console)
 
     async def run_single(self, message: str) -> str | None:
         async with Agent(config=self.config) as agent:
@@ -28,11 +28,12 @@ class CLI:
             return await self._process_message(message)
 
     async def run_interactive(self) -> str | None:
+        # print("model_name is", self.config.model_name)
         self.tui.print_welcome(
             "AI Agent",
             lines=[
-                f"model: openrouter/free",
-                f"cwd: {Path.cwd()}",
+                f"model: {self.config.model_name} ",
+                f"cwd: {self.config.cwd}",
                 "commands: /help /config /approval /model /exit"
             ]
         )

@@ -65,7 +65,7 @@ class Agent:
                     self.session.context_manager
                 )
                 assert usage is not None
-
+                # compression also uses tokens, usme bhi llm ko kol rahe to summarize this
                 if summary:
                     self.session.context_manager.set_latest_usage(usage)
                     self.session.context_manager.add_usage(usage)
@@ -128,6 +128,7 @@ class Agent:
                 if usage:
                     self.session.context_manager.set_latest_usage(usage)
                     self.session.context_manager.add_usage(usage)
+                    # early calcuation and then return (more efficient)
                 return
 
             tool_call_results: list[ToolResultMessage] = []
@@ -165,6 +166,7 @@ class Agent:
                 )
 
             if usage:
+                # updating token usage after tool call results
                 self.session.context_manager.set_latest_usage(usage)
                 self.session.context_manager.add_usage(usage)
 

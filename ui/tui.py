@@ -13,6 +13,7 @@ from rich.markdown import Markdown
 from rich.padding import Padding
 import re
 
+from config import config
 from utils.markdown import normalize_markdown_assistant, normalize_markdown_subagent
 from utils.paths import display_path_rel_to_cwd
 from utils.text import truncate_text
@@ -111,14 +112,14 @@ def _fmt_bytes(n: int) -> str:
 
 class TUI:
 
-    def __init__(self, console: Console | None = None) -> None:
+    def __init__(self, config: Config, console: Console | None = None, ) -> None:
         self.console = console or get_console()
         self._assistant_stream_open = False
         self._assistant_buffer: str = ""
         # Cached args per call_id; needed in tool_call_complete
         self._tool_args_by_call_id: dict[str, dict[str, Any]] = {}
         self.cwd = Path.cwd()
-        self.config = Config
+        self.config = config
 
     # ── Assistant ─────────────────────────────────────────────────────────────
 
@@ -395,9 +396,10 @@ class TUI:
         output: str,
         language: str = "text",
         limit: int = 2400,
-        model: str = "openrouter/free",
+        model: str | None = None
     ) -> Syntax:
-        return self._syntax_block(truncate_text(output, model, limit), language)
+        model = self.config.model_name
+        return self._syntax_block(truncate_text(output, model or "openrouter/free", limit), language)
 
     # ── Tool call complete ────────────────────────────────────────────────────
 
@@ -483,7 +485,7 @@ class TUI:
 
             if diff:
                 blocks.append(self._syntax_block(truncate_text(
-                    diff, "openrouter/free", 2400), "diff"))
+                    diff, str(self.config.model_name), 2400), "diff"))
 
         # ── shell ─────────────────────────────────────────────────────────────
         elif name == "shell":

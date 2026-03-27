@@ -12,7 +12,6 @@ class MessageItem:
     role: str
     content: str
     tool_call_id: str | None = None
-    # all tool calls present in a message
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     token_count: int | None = None
 
@@ -33,35 +32,40 @@ class MessageItem:
 
 class ContextManager:
     def __init__(self, config: Config, user_memory: str | None, tools: list[Tool] | None) -> None:
-        self._system_prompt = get_system_prompt(config, user_memory, tools)
-        self._model_name = "openrouter/free"
-        self._messages: list[MessageItem] = []
-        self._latest_usage = TokenUsage()
-        self._total_usage = TokenUsage()
+        # ✅ ALWAYS assign config first
         self.config = config
 
-    # token count varies for each model and provider
+        self._system_prompt = get_system_prompt(config, user_memory, tools)
+
+        self._messages: list[MessageItem] = []
+
+        # ✅ tracking usage
+        self._latest_usage = TokenUsage()   # last LLM call
+        self._total_usage = TokenUsage()    # cumulative session usage
+
+    # -------------------------------
+    # Message Adders
+    # -------------------------------
 
     def add_user_message(self, content: str) -> None:
         item = MessageItem(
             role="user",
             content=content,
-            token_count=count_tokens(content, model=self._model_name)
+            token_count=count_tokens(content, model=self.config.model_name or "openrouter/free")
         )
-
         self._messages.append(item)
 
     def add_assistant_message(self, content: str, tool_calls: list[dict[str, Any]] | None = None) -> None:
-        # print(tool_calls)
         if not content and not tool_calls:
             return
+
         item = MessageItem(
             role="assistant",
             content=content or "",
-            token_count=count_tokens(content, model=self._model_name),
+            token_count=count_tokens(
+                content or "", model=self.config.model_name or "openrouter/free"),
             tool_calls=tool_calls or []
         )
-
         self._messages.append(item)
 
     def add_tool_result(self, tool_call_id: str, content: str) -> None:
@@ -69,9 +73,13 @@ class ContextManager:
             role="tool",
             content=content,
             tool_call_id=tool_call_id,
-            token_count=count_tokens(content, model=self._model_name))
-
+            token_count=count_tokens(content, model=self.config.model_name or "openrouter/free")
+        )
         self._messages.append(item)
+
+    # -------------------------------
+    # Message Retrieval
+    # -------------------------------
 
     def get_messages(self) -> list[dict[str, Any]]:
         messages = []
@@ -87,12 +95,38 @@ class ContextManager:
 
         return messages
 
+    # -------------------------------
+    # Token / Compression Logic
+    # -------------------------------
+
+    def _estimate_context_tokens(self) -> int:
+        """
+        Better approximation of actual context size.
+        Uses stored token_count instead of latest_usage.
+        """
+        total = 0
+
+        if self._system_prompt:
+            total += count_tokens(self._system_prompt,
+                                  model=self.config.model_name or "openrouter/free")
+
+        for msg in self._messages:
+            if msg.token_count:
+                total += msg.token_count
+
+        return total
+
     def needs_compression(self) -> bool:
         context_limit = self.config.model.context_window
-        current_tokens = self._latest_usage.total_tokens
 
-        return current_tokens > (context_limit*0.8)
-        # not utlising whole context window, as tool results and big operations cant be truncated that much, so to remain on a safer side
+        # ✅ FIX: use estimated input tokens instead of latest_usage.total_tokens
+        current_tokens = self._estimate_context_tokens()
+
+        return current_tokens > (context_limit * 0.8)
+
+    # -------------------------------
+    # Usage Tracking
+    # -------------------------------
 
     def set_latest_usage(self, usage: TokenUsage):
         self._latest_usage = usage
