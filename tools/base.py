@@ -171,7 +171,8 @@ class Tool(abc.ABC):
         return self.kind in (ToolKind.WRITE,
                              ToolKind.SHELL,
                              ToolKind.NETWORK,
-                             ToolKind.MEMORY)
+                             ToolKind.MEMORY,
+                             ToolKind.MCP)
 
     async def get_confirmation(self, invocation: ToolInvocation) -> ToolConfirmation | None:
         # read ops ke liye kya hi user permission lena

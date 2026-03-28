@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 from pathlib import Path
 import os
 from typing import Any
@@ -47,11 +48,22 @@ class MCPServerConfig(BaseModel):
         return self
 
 
+class ApprovalPolicy(str, Enum):
+    ON_REQUEST = "on-request"  # ask when agent explicitly asks for permission
+    ON_FAILURE = "on-failure"  # ask to user on failure
+    AUTO = "auto"  # auto approve all SAFE_COMMANDS and reject others
+    AUTO_EDIT = "auto-edit"  # auto approve all edit commands
+    NEVER = "never"  # never ask for any approval, but still follow safety rules
+    YOLO = "yolo"  # auto approves everything , even dangerous commands
+
+
 class Config (BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     cwd: Path = Field(default_factory=Path.cwd)
 
     shell_environment: ShellEnvironmentPolicy = Field(default_factory=ShellEnvironmentPolicy)
+
+    approval: ApprovalPolicy = ApprovalPolicy.ON_REQUEST
 
     max_turns: int = 100
     max_tool_output_tokens: int = 50_000
