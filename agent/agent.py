@@ -67,6 +67,7 @@ class Agent:
                 assert usage is not None
                 # compression also uses tokens, usme bhi llm ko kol rahe to summarize this
                 if summary:
+                    self.session.context_manager.replace_context_with_summary(summary)
                     self.session.context_manager.set_latest_usage(usage)
                     self.session.context_manager.add_usage(usage)
 
