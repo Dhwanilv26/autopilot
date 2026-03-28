@@ -32,7 +32,7 @@ class MessageItem:
 
 class ContextManager:
     def __init__(self, config: Config, user_memory: str | None, tools: list[Tool] | None) -> None:
-        # ✅ ALWAYS assign config first
+
         self.config = config
 
         self._system_prompt = get_system_prompt(config, user_memory, tools)
@@ -77,10 +77,6 @@ class ContextManager:
         )
         self._messages.append(item)
 
-    # -------------------------------
-    # Message Retrieval
-    # -------------------------------
-
     def get_messages(self) -> list[dict[str, Any]]:
         messages = []
 
@@ -94,10 +90,6 @@ class ContextManager:
             messages.append(item.to_dict())
 
         return messages
-
-    # -------------------------------
-    # Token / Compression Logic
-    # -------------------------------
 
     def _estimate_context_tokens(self) -> int:
         """
@@ -118,7 +110,8 @@ class ContextManager:
 
     def needs_compression(self) -> bool:
         context_limit = self.config.model.context_window
-
+        # this checks what amount of tokens I am about to send to the lLM, and not accounting the previous history and all
+        # and in the next request we are always sending everything, as nothing gets stored in the memory
         # ✅ FIX: use estimated input tokens instead of latest_usage.total_tokens
         current_tokens = self._estimate_context_tokens()
 

@@ -30,9 +30,9 @@ class StreamEventType(str, Enum):  # str pehle hai to .value nai likhna padega
 
 @dataclass
 class TokenUsage:
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
+    prompt_tokens: int = 0  # input tokens, always increase on increase in context
+    completion_tokens: int = 0  # output tokens, vary according to the output, large if tool calls are used
+    total_tokens: int = 0  # prompt+completion
     cached_tokens: int = 0
 
     def __add__(self, other: TokenUsage):
