@@ -205,17 +205,19 @@ I'll continue with the REMAINING tasks only, starting from where we left off."""
         for msg in reversed(self._messages):
             if msg.role == "tool" and msg.tool_call_id:
                 if msg.pruned_at:
-                    break
+                    break  # we dont wanna prune same messages
                 tokens = msg.token_count or count_tokens(
                     msg.content, self.config.model_name or "openrouter/free")
                 total_tokens += tokens
 
                 if total_tokens > self.PRUNE_PROTECT_TOKENS:
+                    # agar total_tokens 40K se bahd gaye to voh ud jaayenge, recent tool outputs will be safe
                     pruned_tokens += tokens
                     to_prune.append(msg)
 
         if pruned_tokens < self.PRUNE_MINIMUM_TOKENS:
-            return 0  # insufficient tokens to prune
+            # insufficient tokens to prune (20K se kam tokens hai to pruning is not worthy)
+            return 0
 
         pruned_count: int = 0
 
