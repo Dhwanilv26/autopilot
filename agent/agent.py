@@ -130,6 +130,7 @@ class Agent:
                     self.session.context_manager.set_latest_usage(usage)
                     self.session.context_manager.add_usage(usage)
                     # early calcuation and then return (more efficient)
+                    pruned_tokens = self.session.context_manager.prune_tool_outputs()
                 return
 
             tool_call_results: list[ToolResultMessage] = []
@@ -170,6 +171,10 @@ class Agent:
                 # updating token usage after tool call results
                 self.session.context_manager.set_latest_usage(usage)
                 self.session.context_manager.add_usage(usage)
+
+            pruned_tokens = self.session.context_manager.prune_tool_outputs()
+
+            yield AgentEvent.agent_error(f"Maximum turns ({max_turns})")
 
     # __ is used for reserved keywords and methods in python, aenter is for async enter
 
