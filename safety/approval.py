@@ -11,7 +11,7 @@ from tools.base import ToolConfirmation
 class ApprovalDecision(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
-    NEEDS_CONFIRMATON = "needs_confirmation"
+    NEEDS_CONFIRMATION = "needs_confirmation"
 
 
 @dataclass
@@ -100,35 +100,59 @@ class ApprovalManager:
         self.cwd = cwd
         self.confirmation_callback = confirmation_callback
 
-        def _assess_command_safety(self, command: str) -> ApprovalDecision:
-            if self.approval_policy == ApprovalPolicy.YOLO:
-                return ApprovalDecision.APPROVED
+    def _assess_command_safety(self, command: str) -> ApprovalDecision:
+        if self.approval_policy == ApprovalPolicy.YOLO:
+            return ApprovalDecision.APPROVED
 
-            if is_dangerous_command(command):
-                return ApprovalDecision.REJECTED
+        if is_dangerous_command(command):
+            return ApprovalDecision.REJECTED
 
-            if self.approval_policy == ApprovalPolicy.NEVER:
-                if is_safe_command(command):
-                    return ApprovalDecision.APPROVED
-                return ApprovalDecision.REJECTED
-
-            if self.approval_policy in {ApprovalPolicy.AUTO, ApprovalPolicy.ON_FAILURE}:
-                return ApprovalDecision.APPROVED
-
-            if self.approval_policy == ApprovalPolicy.AUTO_EDIT:
-                if is_safe_command(command):
-                    return ApprovalDecision.APPROVED
-                return ApprovalDecision.NEEDS_CONFIRMATON
-
+        if self.approval_policy == ApprovalPolicy.NEVER:
+            # never means no user interaction, system has to decide alone, only safe command allowed
             if is_safe_command(command):
                 return ApprovalDecision.APPROVED
+            return ApprovalDecision.REJECTED
 
-            return ApprovalDecision.NEEDS_CONFIRMATON
-
-        async def check_approval(self, context: ApprovalContext) -> ApprovalDecision:
-            # not good if we are giving the llm to read .env files
-            if not context.is_mutating:
+        # rest all policies need user interaction so
+        if self.approval_policy == ApprovalPolicy.AUTO:
+            if is_safe_command(command):
                 return ApprovalDecision.APPROVED
+            return ApprovalDecision.NEEDS_CONFIRMATION
 
-            if context.command:
-                self._assess_command_safety()
+        if self.approval_policy == ApprovalPolicy.ON_FAILURE:
+            return ApprovalDecision.APPROVED  # failure hoga tab dekhlenege, abhi ke liye approved hai
+
+        if self.approval_policy == ApprovalPolicy.AUTO_EDIT:
+            if is_safe_command(command):
+                return ApprovalDecision.APPROVED
+            return ApprovalDecision.NEEDS_CONFIRMATION
+
+        if is_safe_command(command):
+            return ApprovalDecision.APPROVED
+
+        return ApprovalDecision.NEEDS_CONFIRMATION
+
+    async def check_approval(self, context: ApprovalContext) -> ApprovalDecision:
+        # not good if we are giving the llm to read .env files
+        if not context.is_mutating:
+            return ApprovalDecision.APPROVED
+
+        if context.command:
+            decision = self._assess_command_safety(context.command)
+            if decision != ApprovalDecision.NEEDS_CONFIRMATION:
+                # approved ya rejected (hum sure hai iske liye), needs_approval ke liye later checks aayenge
+                return decision
+
+        for path in context.affected_paths:
+            path_decision = ApprovalDecision.NEEDS_CONFIRMATION
+            if path.is_relative_to(self.cwd):
+                path_decision = ApprovalDecision.APPROVED
+            else:
+                return path_decision
+
+        if context.is_dangerous:
+            if self.approval_policy == ApprovalPolicy.YOLO:
+                return ApprovalDecision.APPROVED
+            return ApprovalDecision.NEEDS_CONFIRMATION
+
+        return ApprovalDecision.NEEDS_CONFIRMATION

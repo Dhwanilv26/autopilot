@@ -50,7 +50,7 @@ class MCPServerConfig(BaseModel):
 
 class ApprovalPolicy(str, Enum):
     ON_REQUEST = "on-request"  # ask when agent explicitly asks for permission
-    ON_FAILURE = "on-failure"  # ask to user on failure
+    ON_FAILURE = "on-failure"  # ask to user on failure, till then let the codef
     AUTO = "auto"  # auto approve all SAFE_COMMANDS and reject others
     AUTO_EDIT = "auto-edit"  # auto approve all edit commands
     NEVER = "never"  # never ask for any approval, but still follow safety rules
