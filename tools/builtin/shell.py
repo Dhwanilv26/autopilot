@@ -3,9 +3,11 @@ from pathlib import Path
 import os
 from pydantic import BaseModel, Field
 import fnmatch  # for pattern matching in unix- type file names
-from tools.base import Tool, ToolInvocation, ToolKind, ToolResult
+from tools.base import Tool, ToolConfirmation, ToolInvocation, ToolKind, ToolResult
 import sys
 import signal
+
+from utils.paths import resolve_path
 BLOCKED_COMMANDS = {
     "rm -rf /",
     "rm -rf ~",
@@ -27,6 +29,15 @@ BLOCKED_COMMANDS = {
 }
 
 
+def is_blocked_command(command: str) -> bool:
+
+    for blocked in BLOCKED_COMMANDS:  # to traverse in set of strings
+        if blocked in command:  # in in strings checks for substrings too
+            return True
+
+    return False
+
+
 class ShellParams(BaseModel):
     command: str = Field(...,
                          description="The shell command to execute")
@@ -42,6 +53,27 @@ class ShellTool(Tool):
     @property
     def schema(self):
         return ShellParams
+
+    async def get_confirmation(self, invocation: ToolInvocation) -> ToolConfirmation | None:
+        params = ShellParams(**invocation.params)
+
+        if is_blocked_command(params.command):
+            return ToolConfirmation(
+                tool_name=self.name,
+                params=invocation.params,
+                description=f"Execute (BLOCKED) : {params.command}",
+                command=params.command,
+                is_dangerous=True
+
+            )
+
+        return ToolConfirmation(
+            tool_name=self.name,
+            params=invocation.params,
+            description=f"execute command: {params.command}",
+            command=params.command,
+            is_dangerous=False
+        )
 
     async def execute(self, invocation: ToolInvocation) -> ToolResult:
         params = ShellParams(**invocation.params)

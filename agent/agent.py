@@ -1,19 +1,21 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Awaitable, Callable
 
 from agent.events import AgentEvent, AgentEventType
 from client.response import StreamEventType, TokenUsage, ToolCall, ToolResultMessage
 from config.config import Config
 import json
 from agent.session import Session
+from tools.base import ToolConfirmation
 
 
 class Agent:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, confirmation_callback: Callable[[ToolConfirmation], Awaitable[bool]] | None = None):
         # all variables are specific to a session, to avoid memory leaks, context pollution and maintain isolation while focusing concurrency
         self.session: Session | None = Session(config=config)
         self.config = config
+        self.session.approval_manager = confirmation_callback
 
     async def run(self, message: str):
         assert self.session is not None
@@ -144,7 +146,8 @@ class Agent:
                 result = await self.session.tool_registry.invoke(
                     name=tool_call.name,
                     params=tool_call.arguments,
-                    cwd=Path.cwd()
+                    cwd=Path.cwd(),
+                    approval_manager=self.session.approval_manager
                 )
 
                 yield AgentEvent.tool_call_complete(

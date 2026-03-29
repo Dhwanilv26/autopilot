@@ -55,31 +55,28 @@ class EditFileTool(Tool):
             return ToolConfirmation(
                 tool_name=self.name,
                 params=invocation.params,
-                description=f"Create new file: {path}"
+                description=f"Create new file: {path}",
                 diff=diff,
                 affected_paths=[path],
             )
-        action = "Created" if is_new_file else "Updated"
 
-        old_content = ""
+        old_content = path.read_text(encoding="utf-8")
 
-        if not is_new_file:
-            try:
-                old_content = path.read_text(encoding="utf-8")
-            except:
-                pass
+        if params.replace_all:
+            new_content = old_content.replace(params.old_string, params.new_string)
+        else:
+            new_content = old_content.replace(params.old_string, params.new_string, 1)
 
         diff = FileDiff(
             path=path,
             old_content=old_content,
-            new_content=params.content,
-            is_new_file=is_new_file
+            new_content=new_content,
         )
 
         return ToolConfirmation(
             tool_name=self.name,
             params=invocation.params,
-            description=f"{action} file: {path}"
+            description=f"Edit file: {path}",
             diff=diff,
             affected_paths=[path],
             # overwriting is more dangerous than writing a new file (user old content might get lost so)

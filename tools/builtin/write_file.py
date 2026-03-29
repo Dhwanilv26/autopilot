@@ -56,7 +56,7 @@ class WriteFileTool(Tool):
         return ToolConfirmation(
             tool_name=self.name,
             params=invocation.params,
-            description=f"{action} file: {path}"
+            description=f"{action} file: {path}",
             diff=diff,
             affected_paths=[path],
             # overwriting is more dangerous than writing a new file (user old content might get lost so)
