@@ -95,7 +95,7 @@ class ApprovalManager:
                  cwd: Path,
                  # toolconfirmation is input, and bool is output returned (for callable (type check only)), confirmation_callback can be none as YOLO NEVER AUTO never require userinput
                  confirmation_callback:
-                 Callable[[ToolConfirmation], bool] | None = None) -> None:
+                 Callable[[ToolConfirmation], Awaitable[bool]] | None = None) -> None:
         self.approval_policy = approval_policy
         self.cwd = cwd
         self.confirmation_callback = confirmation_callback
@@ -156,3 +156,10 @@ class ApprovalManager:
             return ApprovalDecision.NEEDS_CONFIRMATION
 
         return ApprovalDecision.NEEDS_CONFIRMATION
+
+    async def request_confirmation(self, confirmation: ToolConfirmation) -> bool:
+        if self.confirmation_callback:
+            result = await self.confirmation_callback(confirmation)
+            return result
+
+        return True

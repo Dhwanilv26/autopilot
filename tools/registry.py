@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 from config.config import Config
+from safety.approval import ApprovalManager
 from tools.base import Tool, ToolInvocation, ToolResult
 import logging
 
@@ -62,7 +63,8 @@ class ToolRegistry:
     def get_schemas(self) -> list[dict[str, Any]]:
         return [tool.to_openai_schema() for tool in self.get_tools()]
 
-    async def invoke(self, name: str, params: dict[str, Any], cwd: Path) -> ToolResult:
+    async def invoke(self, name: str, params: dict[str, Any], cwd: Path,
+                     approval_manager: ApprovalManager | None) -> ToolResult:
         tool = self.get(name)
         if tool is None:
             return ToolResult.error_result(f"unknown tool: {name}",
@@ -78,6 +80,9 @@ class ToolRegistry:
                     "validation_errors": validation_errors})
 
         invocation = ToolInvocation(params=params, cwd=cwd)
+
+        if approval_manager:
+            tool.get_confirmation()
 
         try:
             result = await tool.execute(invocation)

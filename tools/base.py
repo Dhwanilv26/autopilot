@@ -59,9 +59,15 @@ class ToolInvocation:
 
 @dataclass
 class ToolConfirmation:
+    # hamara tool ye name, params and description ke saath ye cheez karega, kya aapko manjoor hai?
     tool_name: str
     params: dict[str, Any]
     description: str
+
+    diff: FileDiff | None = None
+    affected_paths: list[Path] = field(default_factory=list)
+    command: str | None = None
+    is_dangerous: bool = False
 
 
 @dataclass
