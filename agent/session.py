@@ -4,6 +4,7 @@ from client.llm_client import LLMClient
 from config.config import Config
 from context.compaction import ChatCompactor
 from context.manager import ContextManager
+from hooks.hook_system import HookSystem
 from safety.approval import ApprovalManager
 from tools.discovery import ToolDiscoveryManager
 from tools.mcp.mcp_manager import MCPManager
@@ -29,6 +30,7 @@ class Session:
         self.chat_compactor = ChatCompactor(self.client)
         self.approval_manager = ApprovalManager(
             self.config.approval, self.config.cwd, confirmation_callback=confirmation_callback)
+        self.hook_system = HookSystem(self.config)
         self.session_id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.updated_at = datetime.now()

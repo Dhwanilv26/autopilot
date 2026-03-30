@@ -21,6 +21,7 @@ class Agent:
         assert self.session is not None
         assert self.session.context_manager is not None
         final_response = None
+        await self.session.hook_system.trigger_before_agent(message)
         yield AgentEvent.agent_start(message)
         if not self.session:
             raise RuntimeError("Session missing")
@@ -40,7 +41,7 @@ class Agent:
         except Exception as e:
             print("AGENT LOOP CRASHED:", e)
             raise
-
+        await self.session.hook_system.trigger_after_agent(message, str(final_response))
         yield AgentEvent.agent_end(final_response)
 
     async def _agentic_loop(self) -> AsyncGenerator[AgentEvent, None]:
@@ -147,7 +148,8 @@ class Agent:
                     name=tool_call.name,
                     params=tool_call.arguments,
                     cwd=Path.cwd(),
-                    approval_manager=self.session.approval_manager
+                    hook_system=self.session.hook_system,
+                    approval_manager=self.session.approval_manager,
                 )
 
                 yield AgentEvent.tool_call_complete(

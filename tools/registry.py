@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 from config.config import Config
+from hooks.hook_system import HookSystem
 from safety.approval import ApprovalContext, ApprovalDecision, ApprovalManager
 from tools.base import Tool, ToolInvocation, ToolResult
 import logging
@@ -64,20 +65,27 @@ class ToolRegistry:
         return [tool.to_openai_schema() for tool in self.get_tools()]
 
     async def invoke(self, name: str, params: dict[str, Any], cwd: Path,
-                     approval_manager: ApprovalManager | None) -> ToolResult:
+                     approval_manager: ApprovalManager | None,
+                     hook_system: HookSystem) -> ToolResult:
         tool = self.get(name)
         if tool is None:
-            return ToolResult.error_result(f"unknown tool: {name}",
-                                           metadata={"tool_name": name})
+            result = ToolResult.error_result(f"unknown tool: {name}",
+                                             metadata={"tool_name": name})
+            await hook_system.trigger_after_tool(name, params, result)
+            return result
 
         validation_errors = tool.validate_params(params)
 
         if validation_errors:
-            return ToolResult.error_result(
+            result = ToolResult.error_result(
                 f"Invalid parameters: {':'.join(validation_errors)}",
                 metadata={
                     "tool_name": name,
                     "validation_errors": validation_errors})
+            await hook_system.trigger_after_tool(name, params, result)
+            return result
+
+        await hook_system.trigger_before_tool(name, params)
 
         invocation = ToolInvocation(params=params, cwd=cwd)
 
@@ -95,12 +103,16 @@ class ToolRegistry:
                 decision = await approval_manager.check_approval(context)
 
                 if decision == ApprovalDecision.REJECTED:
-                    return ToolResult.error_result(f"operation rejected by safety policy")
+                    result = ToolResult.error_result(f"operation rejected by safety policy")
+                    await hook_system.trigger_after_tool(name, params, result)
+                    return result
                 elif decision == ApprovalDecision.NEEDS_CONFIRMATION:
                     approved = await approval_manager.request_confirmation(confirmation)
 
                     if not approved:
-                        return ToolResult.error_result(f"User rejected the operation")
+                        result = ToolResult.error_result(f"User rejected the operation")
+                        await hook_system.trigger_after_tool(name, params, result)
+                        return result
 
         try:
             result = await tool.execute(invocation)
@@ -110,6 +122,7 @@ class ToolRegistry:
                 f"internal error: {str(e)}",
                 metadata={"tool_name", name}
             )
+        await hook_system.trigger_after_tool(name, params, result)
         return result
 
 # runs at the start of execution

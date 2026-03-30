@@ -37,3 +37,8 @@ env = { GITHUB_TOKEN = "github_pat_11BHZNW3Y0Bf4PZFUguczs_HpMOJfZ85Oqx6S8w8utFQ4
 #     }
 #   }
 # }
+
+[[hooks]]
+name = "test_before_tool"
+trigger = "before_tool"
+command = "python3 ./scripts/test_tool.py"
