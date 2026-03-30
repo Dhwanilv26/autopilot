@@ -57,11 +57,42 @@ class ApprovalPolicy(str, Enum):
     YOLO = "yolo"  # auto approves everything , even dangerous commands
 
 
+class HookTrigger(str, Enum):
+    BEFORE_AGENT = "before_agent"
+    AFTER_AGENT = "after_agent"
+    BEFORE_TOOL = "before_tool"
+    AFTER_TOOL = "after_tool"
+    ON_ERROR = "on_error"
+
+
+class HookConfig(BaseModel):
+    name: str
+    trigger: HookTrigger
+    command: str | None = None  # simple python commands or code commands
+    script: str | None = None  # all scripts possible in .sh form
+    timeout_sec: float = 30
+    enabled: bool = True
+
+    @model_validator(mode="after")
+    def validate_hook(self) -> HookConfig:
+
+        if not (self.command or self.script):
+            raise ValueError("Provide either command or script")
+
+        if self.command and self.script:
+            raise ValueError("Provide only one of command or script")
+
+        return self
+
+
 class Config (BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     cwd: Path = Field(default_factory=Path.cwd)
 
     shell_environment: ShellEnvironmentPolicy = Field(default_factory=ShellEnvironmentPolicy)
+
+    hooks_enabled: bool = False
+    hooks: list[HookConfig] = Field(default_factory=list)
 
     approval: ApprovalPolicy = ApprovalPolicy.ON_REQUEST
 

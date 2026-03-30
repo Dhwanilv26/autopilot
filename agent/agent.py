@@ -177,7 +177,7 @@ class Agent:
 
             pruned_tokens = self.session.context_manager.prune_tool_outputs()
 
-            yield AgentEvent.agent_error(f"Maximum turns ({max_turns})")
+        yield AgentEvent.agent_error(f"Maximum turns ({max_turns})")
 
     # __ is used for reserved keywords and methods in python, aenter is for async enter
 
