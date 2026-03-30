@@ -1,19 +1,22 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
-from rich.console import Console
+from click import prompt
+from rich.console import Console, RenderableType
 from rich.theme import Theme
 from rich.text import Text
 from rich.panel import Panel
 from rich.table import Table
 from rich import box
 from rich.syntax import Syntax
+from rich.prompt import Prompt
 from rich.console import Group
 from rich.markdown import Markdown
 from rich.padding import Padding
 import re
 
 from config import config
+from tools.base import ToolConfirmation
 from utils.markdown import normalize_markdown_assistant, normalize_markdown_subagent
 from utils.paths import display_path_rel_to_cwd
 from utils.text import truncate_text
@@ -766,3 +769,66 @@ class TUI:
 
         self.console.print()
         self.console.print(panel)
+
+    async def handle_confirmation(self, confirmation: ToolConfirmation) -> bool:
+        output: List[RenderableType] = []
+
+        # 🔹 Tool name
+        output.append(
+            Text(f"🔧 {confirmation.tool_name}", style="bold cyan")
+        )
+
+        # 🔹 Description
+        output.append(
+            Text(confirmation.description, style="white")
+        )
+
+        # 🔹 Command (if exists)
+        if confirmation.command:
+            output.append(
+                Panel(
+                    Text(f"$ {confirmation.command}", style="bold yellow"),
+                    border_style="yellow",
+                    title="Command",
+                    box=box.MINIMAL
+                )
+            )
+
+        # 🔹 Diff (if exists)
+        if confirmation.diff:
+            diff_text = confirmation.diff.to_diff()
+
+            output.append(
+                Panel(
+                    Syntax(
+                        diff_text,
+                        "diff",
+                        theme="monokai",
+                        word_wrap=True
+                    ),
+                    border_style="magenta",
+                    title="Changes",
+                    box=box.MINIMAL
+                )
+            )
+
+        # 🔹 Print UI
+        self.console.print()
+        self.console.print(
+            Panel(
+                Group(*output),
+                title="⚠ Approval Required",
+                border_style="bright_yellow",
+                box=box.ROUNDED,
+                padding=(1, 2)
+            )
+        )
+
+        # 🔹 Ask user
+        choice = Prompt.ask(
+            "[bold yellow]Approve this action?[/bold yellow]",
+            choices=["y", "n", "yes", "no"],
+            default="n"
+        )
+
+        return choice.lower() in {"y", "yes"}

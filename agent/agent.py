@@ -13,9 +13,9 @@ from tools.base import ToolConfirmation
 class Agent:
     def __init__(self, config: Config, confirmation_callback: Callable[[ToolConfirmation], Awaitable[bool]] | None = None):
         # all variables are specific to a session, to avoid memory leaks, context pollution and maintain isolation while focusing concurrency
-        self.session: Session | None = Session(config=config)
+        self.session: Session | None = Session(
+            config=config, confirmation_callback=confirmation_callback)
         self.config = config
-        self.session.approval_manager = confirmation_callback
 
     async def run(self, message: str):
         assert self.session is not None

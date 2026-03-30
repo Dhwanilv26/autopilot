@@ -15,7 +15,7 @@ from config.loader import get_data_dir
 
 class Session:
     # async can not be inside __init__
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, confirmation_callback=None) -> None:
         self.config = config
         self.client = LLMClient(config=config)
         self.tool_registry = create_default_registry(config)
@@ -23,11 +23,12 @@ class Session:
         # subagent banate time -> new agent to obviously new session
         self.discovery_manager = ToolDiscoveryManager(
             self.config,
-            self.tool_registry
+            self.tool_registry,
         )
         self.mcp_manager = MCPManager(self.config)
         self.chat_compactor = ChatCompactor(self.client)
-        self.approval_manager = ApprovalManager(self.config.approval, self.config.cwd)
+        self.approval_manager = ApprovalManager(
+            self.config.approval, self.config.cwd, confirmation_callback=confirmation_callback)
         self.session_id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
