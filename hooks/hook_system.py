@@ -1,8 +1,11 @@
 import asyncio
+import json
 import os
+import shlex
 import signal
 import sys
 import tempfile
+from typing import Any
 
 from config.config import Config, HookConfig, HookTrigger
 from tools.base import ToolResult
@@ -14,39 +17,189 @@ class HookSystem:
         self.hooks: list[HookConfig] = []
 
         if self.config.hooks_enabled:
-            # hook.enabled (for partcular hook, hooks_enabled -> system wide config)
+            # Only keep enabled hooks
             self.hooks = [hook for hook in self.config.hooks if hook.enabled]
 
-    async def _run_hook(self, hook: HookConfig) -> None:
-        if hook.command:
-            # refer more in shell tool
-            process = await asyncio.create_subprocess_exec(
-                hook.command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=self.config.cwd,
-                env=os.environ.copy(),
-                start_new_session=True
+    async def _run_command(
+        self,
+        command: str,
+        timeout: float,
+        env: dict[str, str],
+    ) -> None:
+        """
+        Executes a command safely with timeout and process cleanup.
+        """
+
+        cmd_parts = shlex.split(command)
+
+        process = await asyncio.create_subprocess_exec(
+            *cmd_parts,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+            start_new_session=True,
+        )
+
+        try:
+            await asyncio.wait_for(
+                process.communicate(),
+                timeout=timeout,
             )
 
-            try:
-                await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=hook.timeout_sec
+        except asyncio.TimeoutError:
+            # Kill entire process group (important for scripts)
+            if sys.platform != "win32":
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            else:
+                process.kill()
+
+            await process.wait()
+
+        except Exception:
+            if process.returncode is None:
+                process.kill()
+                await process.wait()
+            raise
+
+    async def _run_hook(self, hook: HookConfig, env: dict[str, str]) -> None:
+        """
+        Resolves hook config and executes it.
+        """
+
+        if not hook.enabled:
+            return
+
+        try:
+            if hook.command:
+                await self._run_command(
+                    command=hook.command,
+                    timeout=hook.timeout_sec,
+                    env=env,
                 )
 
-            except asyncio.TimeoutError:
-                if sys.platform != "win32":
+            elif hook.script:
+                # Convert script → temp executable file
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    suffix=".sh",
+                    delete=False,
+                ) as f:
+                    f.write("#!/bin/bash\n")
+                    f.write(hook.script)
+                    script_path = f.name
 
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                else:
-                    process.kill()
-                await process.wait()
+                try:
+                    os.chmod(script_path, 0o755)
 
-        elif hook.script:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+                    await self._run_command(
+                        command=script_path,
+                        timeout=hook.timeout_sec,
+                        env=env,
+                    )
+
+                finally:
+                    if os.path.exists(script_path):
+                        os.unlink(script_path)
+
+        except Exception as e:
+            print(f"[HOOK ERROR] {hook.name}: {e}")
+
+    def _build_env(
+        self,
+        trigger: HookTrigger,
+        tool_name: str | None = None,
+        user_message: str | None = None,
+        error: Exception | None = None,
+        tool_params: dict[str, Any] | None = None,
+    ) -> dict[str, str]:
+        """
+        Builds environment variables to pass agent context into hooks.
+        """
+
+        env = os.environ.copy()
+
+        env["AI_AGENT_TRIGGER"] = trigger.value
+        env["AI_AGENT_CWD"] = str(self.config.cwd)
+
+        if tool_name:
+            env["AI_AGENT_TOOL_NAME"] = tool_name
+
+        if user_message:
+            env["AI_AGENT_USER_MESSAGE"] = user_message
+
+        if error:
+            env["AI_AGENT_ERROR"] = str(error)
+
+        if tool_params:
+            env["AI_AGENT_TOOL_PARAMS"] = json.dumps(tool_params)
+
+        return env
 
     async def trigger_before_agent(self, user_message: str) -> None:
+        env = self._build_env(
+            trigger=HookTrigger.BEFORE_AGENT,
+            user_message=user_message,
+        )
+
         for hook in self.hooks:
             if hook.trigger == HookTrigger.BEFORE_AGENT:
-                await self._run_hook(hook)
+                await self._run_hook(hook, env)
+
+    async def trigger_after_agent(
+        self,
+        user_message: str,
+        agent_response: str,
+    ) -> None:
+        env = self._build_env(
+            trigger=HookTrigger.AFTER_AGENT,
+            user_message=user_message,
+        )
+
+        env["AI_AGENT_RESPONSE"] = agent_response[:5000]
+
+        for hook in self.hooks:
+            if hook.trigger == HookTrigger.AFTER_AGENT:
+                await self._run_hook(hook, env)
+
+    async def trigger_before_tool(
+        self,
+        tool_name: str,
+        tool_params: dict[str, Any],
+    ) -> None:
+        env = self._build_env(
+            trigger=HookTrigger.BEFORE_TOOL,
+            tool_name=tool_name,
+            tool_params=tool_params,
+        )
+
+        for hook in self.hooks:
+            if hook.trigger == HookTrigger.BEFORE_TOOL:
+                await self._run_hook(hook, env)
+
+    async def trigger_after_tool(
+        self,
+        tool_name: str,
+        tool_params: dict[str, Any],
+        tool_result: ToolResult,
+    ) -> None:
+        env = self._build_env(
+            trigger=HookTrigger.AFTER_TOOL,
+            tool_name=tool_name,
+            tool_params=tool_params,
+        )
+
+        env["AI_AGENT_TOOL_RESULT"] = tool_result.to_model_output()
+
+        for hook in self.hooks:
+            if hook.trigger == HookTrigger.AFTER_TOOL:
+                await self._run_hook(hook, env)
+
+    async def on_error(self, error: Exception) -> None:
+        env = self._build_env(
+            trigger=HookTrigger.ON_ERROR,
+            error=error,
+        )
+
+        for hook in self.hooks:
+            if hook.trigger == HookTrigger.ON_ERROR:
+                await self._run_hook(hook, env)
