@@ -1,3 +1,6 @@
+cwd = "/Users/dhwanil/Desktop/agentic-cli"
+hooks_enabled = true
+
 [model]
 name = "openrouter/free"
 # same as
@@ -6,7 +9,6 @@ name = "openrouter/free"
 #     "name": "openrouter/free"
 #   }
 # }
-cwd = "/Users/dhwanil/Desktop/agentic-cli"
 
 [mcp_servers.filesystem]
 command = "npx"
@@ -41,4 +43,9 @@ env = { GITHUB_TOKEN = "github_pat_11BHZNW3Y0Bf4PZFUguczs_HpMOJfZ85Oqx6S8w8utFQ4
 [[hooks]]
 name = "test_before_tool"
 trigger = "before_tool"
+command = "python3 ./scripts/test_tool.py"
+
+[[hooks]]
+name = "test_before_agent"
+trigger = "before_agent"
 command = "python3 ./scripts/test_tool.py"

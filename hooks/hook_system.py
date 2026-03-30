@@ -32,8 +32,8 @@ class HookSystem:
 
         cmd_parts = shlex.split(command)
 
-        process = await asyncio.create_subprocess_exec(
-            *cmd_parts,
+        process = await asyncio.create_subprocess_shell(
+            command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
