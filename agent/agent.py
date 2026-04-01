@@ -7,6 +7,7 @@ from client.response import StreamEventType, TokenUsage, ToolCall, ToolResultMes
 from config.config import Config
 import json
 from agent.session import Session
+from prompts.system import create_loop_breaker_prompt
 from tools.base import ToolConfirmation
 
 
@@ -127,6 +128,10 @@ class Agent:
 
             if response_text:
                 yield AgentEvent.text_complete(response_text)
+                self.session.loop_detector.record_action(
+                    "response",
+                    text=response_text
+                )
 
             if not tool_calls:
                 if usage:
@@ -144,6 +149,22 @@ class Agent:
                     tool_call.arguments
                 )
 
+                self.session.loop_detector.record_action(
+                    "tool_call",
+                    tool_name=tool_call.name,
+                    args=tool_call.arguments
+                )
+
+                loop_detection_error = self.session.loop_detector.check_for_loop()
+                if loop_detection_error:
+                    loop_prompt = create_loop_breaker_prompt(loop_detection_error)
+                    self.session.context_manager.add_user_message(loop_prompt)
+                    yield AgentEvent.loop_detected(
+                        reason=loop_detection_error,
+                        history=[h[1] for h in self.session.loop_detector._history]
+                    )
+                    continue
+
                 result = await self.session.tool_registry.invoke(
                     name=tool_call.name,
                     params=tool_call.arguments,
@@ -151,6 +172,25 @@ class Agent:
                     hook_system=self.session.hook_system,
                     approval_manager=self.session.approval_manager,
                 )
+
+                self.session.loop_detector.record_action(
+                    "tool_result",
+                    result=result.output
+                )
+
+                loop_detection_error = self.session.loop_detector.check_for_loop()
+
+                if loop_detection_error:
+                    loop_prompt = create_loop_breaker_prompt(loop_detection_error)
+
+                    self.session.context_manager.add_user_message(loop_prompt)
+
+                    yield AgentEvent.loop_detected(
+                        reason=loop_detection_error,
+                        history=[h[1] for h in self.session.loop_detector._history]
+                    )
+
+                    break
 
                 yield AgentEvent.tool_call_complete(
                     tool_call.call_id,

@@ -49,3 +49,13 @@ command = "python3 ./scripts/test_tool.py"
 name = "test_before_agent"
 trigger = "before_agent"
 command = "python3 ./scripts/test_tool.py"
+
+[[hooks]]
+name = "test_after_tool"
+trigger = "after_tool"
+command = "python3 ./scripts/test_tool.py"
+
+[[hooks]]
+name = "test_after_agent"
+trigger = "after_agent"
+command = "python3 ./scripts/test_tool.py"

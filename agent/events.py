@@ -12,6 +12,7 @@ class AgentEventType(str, Enum):
     AGENT_START = "agent_start"
     AGENT_END = "agent_end"
     AGENT_ERROR = "agent_error"
+    LOOP_DETECTED = "loop_detected"
 
     # tool calls
     TOOL_CALL_START = "tool_call_start"
@@ -95,5 +96,19 @@ class AgentEvent:
                 "exit_code": result.exit_code,
                 "diff": result.diff.to_diff() if result.diff else None
 
+            }
+        )
+
+    @classmethod
+    def loop_detected(
+        cls,
+        reason: str,
+        history: list[str] | None = None
+    ) -> AgentEvent:
+        return cls(
+            type=AgentEventType.LOOP_DETECTED,
+            data={
+                "reason": reason,
+                "history": history or []
             }
         )
