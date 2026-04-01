@@ -99,7 +99,6 @@ class Config (BaseModel):
     max_turns: int = 100
     max_tool_output_tokens: int = 50_000
 
-    # mcp server name and the whole class to describe it
     # mcp_servers is a dict and not a list because lookup operations in dict are O(1) and not O(N), no duplicate keys and easier validaton for pydantic (sab dict mai hi parse hoke aayega)
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
     allowed_tools: list[str] | None = Field(
