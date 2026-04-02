@@ -137,6 +137,14 @@ class CLI:
         elif command == "/help":
             self.tui.show_help()
 
+        elif command == "/clear":
+            if self.agent and self.agent.session and self.agent.session.context_manager and self.agent.session.loop_detector:
+                self.agent.session.context_manager.clear()
+                self.agent.session.loop_detector.clear()
+                console.print(f"[success] Conversation cleared! [/success]")
+
+        elif command == "/config":
+
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
 

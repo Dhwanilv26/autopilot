@@ -135,3 +135,6 @@ class LoopDetector:
                 return f"detected semantically similar cycle of length {cycle_len}"
 
         return None
+
+    def clear(self) -> None:
+        self._history.clear()
