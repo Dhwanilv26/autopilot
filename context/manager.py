@@ -48,9 +48,17 @@ class ContextManager:
         self._latest_usage = TokenUsage()   # last LLM call
         self._total_usage = TokenUsage()    # cumulative session usage
 
-    # -------------------------------
-    # Message Adders
-    # -------------------------------
+    @property
+    def message_count(self) -> int:
+        return len(self._messages)
+
+    @property
+    def total_usage(self) -> TokenUsage:
+        return self._total_usage
+
+        # -------------------------------
+        # Message Adders
+        # -------------------------------
 
     def add_user_message(self, content: str) -> None:
         item = MessageItem(

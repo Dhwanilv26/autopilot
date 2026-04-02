@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import Any
+
+from ui.tui import get_console
 from config.config import Config
 from hooks.hook_system import HookSystem
 from safety.approval import ApprovalContext, ApprovalDecision, ApprovalManager
@@ -13,12 +15,18 @@ from tools.subagents.subagents import SubAgentTool
 # __name__ = name of the current module
 logger = logging.getLogger(__name__)
 
+console = get_console()
+
 
 class ToolRegistry:
     def __init__(self, config: Config):
         self._tools: dict[str, Tool] = {}
         self._mcp_tools: dict[str, Tool] = {}
         self.config = config
+
+    @property
+    def connected_mcp_tools(self) -> list[Tool]:
+        return list(self._mcp_tools.values())
 
     def register(self, tool: Tool) -> None:
         if tool.name in self._tools:

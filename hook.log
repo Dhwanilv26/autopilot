@@ -50,3 +50,7 @@
 [HOOK] {"timestamp": "2026-04-02T01:14:16.539995", "trigger": "before_tool", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": "read_file", "user_message": null, "error": null, "agent_response": null}
 [HOOK] {"timestamp": "2026-04-02T01:14:16.562923", "trigger": "after_tool", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": "read_file", "user_message": null, "error": null, "agent_response": null}
 [HOOK] {"timestamp": "2026-04-02T01:14:40.038041", "trigger": "before_tool", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": "edit_file", "user_message": null, "error": null, "agent_response": null}
+[HOOK] {"timestamp": "2026-04-03T00:00:58.165991", "trigger": "before_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hello", "error": null, "agent_response": null}
+[HOOK] {"timestamp": "2026-04-03T00:01:01.016851", "trigger": "after_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hello", "error": null, "agent_response": "Hello! How can I assist you today?"}
+[HOOK] {"timestamp": "2026-04-03T00:01:22.508238", "trigger": "before_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hello", "error": null, "agent_response": null}
+[HOOK] {"timestamp": "2026-04-03T00:01:32.453831", "trigger": "after_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hello", "error": null, "agent_response": "Hello again! How can I assist you today? \ud83d\ude0a\n"}

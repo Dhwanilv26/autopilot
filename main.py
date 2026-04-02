@@ -177,6 +177,13 @@ class CLI:
             else:
                 console.print(f"Current approval policy: {self.config.approval.value}")
 
+        elif cmd_name == "/stats":
+            assert self.agent and self.agent.session is not None
+            stats = self.agent.session.get_stats()
+            console.print("\n[bold] Session Statistics: [/bold]")
+            for key, value in stats.items():
+                console.print(f" {key}: {value}")
+
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
 

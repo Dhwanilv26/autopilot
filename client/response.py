@@ -43,6 +43,22 @@ class TokenUsage:
             cached_tokens=self.cached_tokens+other.cached_tokens
         )
 
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+            "cached_tokens": self.cached_tokens,
+        }
+    
+    def pretty(self) -> str:
+        return (
+            f"\nprompt_tokens: {self.prompt_tokens}\n"
+            f"completion_tokens: {self.completion_tokens}\n"
+            f"total_tokens: {self.total_tokens}\n"
+            f"cached_tokens: {self.cached_tokens}"
+        )
+
 
 @dataclass
 class ToolCallDelta:
