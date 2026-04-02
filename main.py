@@ -5,7 +5,7 @@ import click
 
 from agent.agent import Agent
 from agent.events import AgentEventType
-from config.config import Config
+from config.config import ApprovalPolicy, Config
 from config.loader import load_config
 from ui.tui import TUI, get_console
 
@@ -144,6 +144,38 @@ class CLI:
                 console.print(f"[success] Conversation cleared! [/success]")
 
         elif command == "/config":
+            console.print("\n[bold]Current Configuration[/bold]")
+            console.print(f"  Model: {self.config.model_name}")
+            console.print(f"  Temperature: {self.config.temperature}")
+            console.print(f"  Approval: {self.config.approval.value}")
+            console.print(f"  Working Dir: {self.config.cwd}")
+            console.print(f"  Max Turns: {self.config.max_turns}")
+            console.print(f"  Hooks Enabled: {self.config.hooks_enabled}")
+
+        elif cmd_name == "/model":
+            if cmd_args:
+                self.config.model_name = cmd_args
+                console.print(f'[success] Model changed to {cmd_args} [/success]')
+            else:
+                console.print(f"Current model: {self.config.model_name}")
+
+        elif cmd_name == "/approval":
+            if cmd_args:
+                try:
+                    approval = ApprovalPolicy(cmd_args)
+                    self.config.approval = approval
+                    console.print(
+                        f"[success]Approval policy changed to: {cmd_args} [/success]"
+                    )
+                except:
+                    console.print(
+                        f"[error]Incorrect approval policy: {cmd_args} [/error]"
+                    )
+                    console.print(
+                        f"Valid options: {', '.join(p for p in ApprovalPolicy)}"
+                    )
+            else:
+                console.print(f"Current approval policy: {self.config.approval.value}")
 
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
