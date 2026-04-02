@@ -44,6 +44,12 @@ class CLI:
                     user_input = console.input("\n[user]>[/user]").strip()
                     if not user_input:
                         continue
+
+                    if user_input.startswith("/"):
+                        should_continue = self._handle_command(user_input)
+                        if not should_continue:
+                            break
+                        continue
                     await self._process_message(user_input)
                 except KeyboardInterrupt:
                     console.print("\n[dim]Use /exit to quit [/dim]")
@@ -117,6 +123,24 @@ class CLI:
                 )
 
         return final_response
+
+    def _handle_command(self, command: str) -> bool:
+
+        cmd = command.lower().strip()
+        parts = cmd.split(maxsplit=1)
+        cmd_name = parts[0]
+        cmd_args = parts[1] if len(parts) > 1 else ""
+
+        if cmd_name == "/exit" or cmd_name == "/quit":
+            return False
+
+        elif command == "/help":
+            self.tui.show_help()
+
+        else:
+            console.print(f'[error] Unknown command" {cmd_name} [/error]')
+
+        return True
 
 
 @click.command()

@@ -832,3 +832,31 @@ class TUI:
         )
 
         return choice.lower() in {"y", "yes"}
+
+    def show_help(self) -> None:
+        help_text = """
+## Commands
+
+- `/help` — Display this help menu  
+- `/exit` or `/quit` — Exit the agent  
+- `/clear` — Clear conversation history  
+- `/config` — View current configuration  
+- `/model <name>` — Switch model  
+- `/approval <mode>` — Set approval mode  
+- `/stats` — View session statistics  
+- `/tools` — List available tools  
+- `/mcp` — Check MCP server status  
+- `/save` — Save current session  
+- `/checkpoint [name]` — Create a checkpoint  
+- `/checkpoints` — List all checkpoints  
+- `/restore <checkpoint_id>` — Restore a checkpoint  
+- `/sessions` — List saved sessions  
+- `/resume <session_id>` — Resume a session  
+
+## Tips
+
+- Type naturally to chat with the agent  
+- The agent can read, write, and execute code  
+- Some actions may require approval (configurable)  
+"""
+        self.console.print(Markdown(help_text))
