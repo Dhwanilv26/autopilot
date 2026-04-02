@@ -126,6 +126,8 @@ class CLI:
 
     def _handle_command(self, command: str) -> bool:
 
+        assert self.agent and self.agent.session is not None
+
         cmd = command.lower().strip()
         parts = cmd.split(maxsplit=1)
         cmd_name = parts[0]
@@ -183,6 +185,24 @@ class CLI:
             console.print("\n[bold] Session Statistics: [/bold]")
             for key, value in stats.items():
                 console.print(f" {key}: {value}")
+
+        elif cmd_name == "/tools":
+
+            tools = self.agent.session.tool_registry.get_tools()
+            console.print(f"\n[bold]Available tools ({len(tools)}) [/bold]")
+            for tool in tools:
+                console.print(f"  • {tool.name}")
+
+        elif cmd_name == "/mcp":
+
+            mcp_servers = self.agent.session.mcp_manager.get_all_servers()
+            console.print(f"\n[bold]MCP Servers ({len(mcp_servers)}) [/bold]")
+            for server in mcp_servers:
+                status = server["status"]
+                status_color = "green" if status == "connected" else "red"
+                console.print(
+                    f"  • {server['name']}: [{status_color}]{status}[/{status_color}] ({server['tools']} tools)"
+                )
 
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
