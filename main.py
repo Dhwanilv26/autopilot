@@ -147,13 +147,7 @@ class CLI:
                 console.print(f"[success] Conversation cleared! [/success]")
 
         elif command == "/config":
-            console.print("\n[bold]Current Configuration[/bold]")
-            console.print(f"  Model: {self.config.model_name}")
-            console.print(f"  Temperature: {self.config.temperature}")
-            console.print(f"  Approval: {self.config.approval.value}")
-            console.print(f"  Working Dir: {self.config.cwd}")
-            console.print(f"  Max Turns: {self.config.max_turns}")
-            console.print(f"  Hooks Enabled: {self.config.hooks_enabled}")
+            self.tui.render_config_table(self.config)
 
         elif cmd_name == "/model":
             if cmd_args:
@@ -183,9 +177,7 @@ class CLI:
         elif cmd_name == "/stats":
             assert self.agent and self.agent.session is not None
             stats = self.agent.session.get_stats()
-            console.print("\n[bold] Session Statistics: [/bold]")
-            for key, value in stats.items():
-                console.print(f" {key}: {value}")
+            self.tui.render_stats_table(stats)
 
         elif cmd_name == "/tools":
 

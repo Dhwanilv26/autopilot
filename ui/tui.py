@@ -860,3 +860,33 @@ class TUI:
 - Some actions may require approval (configurable)  
 """
         self.console.print(Markdown(help_text))
+
+    def render_stats_table(self, stats: dict[str, Any]):
+        table = Table(title=" Session Statistics", show_lines=True)
+
+        table.add_column("Metric", style="bold cyan", no_wrap=True)
+        table.add_column("Value", style="green")
+
+        for key, value in stats.items():
+
+            if isinstance(value, str) and "\n" in value:
+                value = value.replace("\n", " | ")
+            pretty_key = key.replace("_", " ").title()
+            table.add_row(pretty_key, str(value))
+
+        self.console.print(table)
+
+    def render_config_table(self, config: Config):
+        table = Table(title="Configuration", show_lines=True)
+
+        table.add_column("Setting", style="bold cyan", no_wrap=True)
+        table.add_column("Value", style="green")
+
+        table.add_row("Model", str(config.model_name))
+        table.add_row("Temperature", str(config.temperature))
+        table.add_row("Approval Mode", str(config.approval.value))
+        table.add_row("Working Directory", str(config.cwd))
+        table.add_row("Max Turns", str(config.max_turns))
+        table.add_row("Hooks Enabled", str(config.hooks_enabled))
+
+        self.console.print(table)

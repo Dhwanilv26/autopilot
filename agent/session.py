@@ -12,7 +12,6 @@ from safety.approval import ApprovalManager
 from tools.discovery import ToolDiscoveryManager
 from tools.mcp.mcp_manager import MCPManager
 from tools.registry import create_default_registry
-import uuid
 from datetime import datetime
 from config.loader import get_data_dir
 
