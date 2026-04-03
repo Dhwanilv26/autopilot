@@ -141,6 +141,8 @@ class ContextManager:
         self._latest_usage = usage
 
     def add_usage(self, usage: TokenUsage):
+        if self._total_usage is None:
+            self._total_usage = TokenUsage(0, 0, 0, 0)
         self._total_usage += usage
 
     def replace_context_with_summary(self, summary: str) -> None:
