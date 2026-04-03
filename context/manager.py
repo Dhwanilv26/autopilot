@@ -56,6 +56,9 @@ class ContextManager:
     def total_usage(self) -> TokenUsage:
         return self._total_usage
 
+    @total_usage.setter
+    def total_usage(self, value):
+        self._total_usage = value
         # -------------------------------
         # Message Adders
         # -------------------------------

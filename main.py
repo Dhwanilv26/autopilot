@@ -45,7 +45,7 @@ class CLI:
                         continue
 
                     if user_input.startswith("/"):
-                        should_continue = self._handle_command(user_input)
+                        should_continue = await self._handle_command(user_input)
                         if not should_continue:
                             break
                         continue
@@ -234,6 +234,7 @@ class CLI:
                         config=self.config
                     )
                     await session.initialize()
+                    session.session_id = snapshot.session_id
                     session.created_at = snapshot.created_at
                     session.updated_at = snapshot.updated_at
                     session.context_manager.total_usage = snapshot.total_usage  # type: ignore

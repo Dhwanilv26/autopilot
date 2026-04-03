@@ -33,7 +33,7 @@ class SessionSnapshot:
     updated_at: datetime
     turn_count: int
     messages: list[dict[str, Any]]
-    total_usage: TokenUsage
+    total_usage: TokenUsage | None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -47,13 +47,19 @@ class SessionSnapshot:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SessionSnapshot:
+        total_usage_data = data.get("total_usage")
+        total_usage = (
+            TokenUsage(**total_usage_data)
+            if total_usage_data
+            else None
+        )
         return cls(
             session_id=data["session_id"],
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
             turn_count=data["turn_count"],
             messages=data["messages"],
-            total_usage=TokenUsage(**data["total_usage"])
+            total_usage=total_usage
         )
 
 
