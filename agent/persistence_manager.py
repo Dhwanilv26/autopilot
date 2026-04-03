@@ -5,6 +5,7 @@ import json
 import os
 from typing import Any
 
+from client.response import TokenUsage
 from config.loader import get_data_dir
 
 
@@ -32,6 +33,7 @@ class SessionSnapshot:
     updated_at: datetime
     turn_count: int
     messages: list[dict[str, Any]]
+    total_usage: TokenUsage
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,7 +41,8 @@ class SessionSnapshot:
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "turn_count": self.turn_count,
-            "messages": self.messages
+            "messages": self.messages,
+            "token_usage": self.total_usage.__dict__
         }
 
     @classmethod
@@ -49,7 +52,8 @@ class SessionSnapshot:
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"]),
             turn_count=data["turn_count"],
-            messages=data["messages"]
+            messages=data["messages"],
+            total_usage=TokenUsage(**data["total_usage"])
         )
 
 

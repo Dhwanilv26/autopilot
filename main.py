@@ -32,11 +32,7 @@ class CLI:
         # print("model_name is", self.config.model_name)
         self.tui.print_welcome(
             "AI Agent",
-            lines=[
-                f"model: {self.config.model_name} ",
-                f"cwd: {self.config.cwd}",
-                "commands: /help /config /approval /model /exit"
-            ]
+            config=self.config
         )
         async with Agent(self.config, confirmation_callback=self.tui.handle_confirmation) as agent:
             self.agent = agent
@@ -204,7 +200,8 @@ class CLI:
                 created_at=self.agent.session.created_at,
                 updated_at=self.agent.session.updated_at,
                 turn_count=self.agent.session.turn_count,
-                messages=self.agent.session.context_manager.get_messages()
+                messages=self.agent.session.context_manager.get_messages(),
+                total_usage=self.agent.session.context_manager.total_usage
             )
 
             persistence_manager.save_session(session_snapshot)

@@ -21,6 +21,7 @@ from utils.markdown import normalize_markdown_assistant, normalize_markdown_suba
 from utils.paths import display_path_rel_to_cwd
 from utils.text import truncate_text
 from config.config import Config
+from pyfiglet import figlet_format
 
 
 AGENT_THEME = Theme(
@@ -366,18 +367,105 @@ class TUI:
 
     # ── Welcome banner ────────────────────────────────────────────────────────
 
-    def print_welcome(self, title: str, lines: list[str]) -> None:
-        body = "\n".join(lines)
+    def print_welcome(self, title: str, config) -> None:
+
+        # ── ASCII banner ──────────────────────────────────────────────────────────
+        raw_banner = figlet_format("AURIX", font="ansi_shadow")
+        banner = Text(raw_banner, style="bold #e8662a")
+
+        subtitle = Text(
+            "MULTI-AGENT AI CODING SYSTEM",
+            style="bold #888780",
+            justify="left",
+        )
+
+        tagline = Text(
+            "completely customizable · local + API models · executes real tasks",
+            style="#555552",
+            justify="left",
+        )
+
+        # ── Info rows ─────────────────────────────────────────────────────────────
+        info = Text()
+
+        info.append("model        ", style="bold #e8662a")
+        info.append(f"{config.model_name}\n", style="grey93")
+
+        info.append("working dir  ", style="bold #e8662a")
+        info.append(f"{config.cwd}\n", style="#a78bfa")
+
+        approval_value = getattr(config, "approval", "auto")
+
+        if hasattr(approval_value, "value"):
+
+            approval_value = approval_value.value.upper()  # type: ignore
+
+        info.append("approval     ", style="bold #e8662a")
+        info.append(f"{approval_value}\n", style="grey93")
+
+        # ── Commands (GRID STYLE: 2 per row) ──────────────────────────────────────
+        section_label = Text("commands", style="dim")
+
+        cmd_table = Table.grid(expand=True)
+
+        # 4 columns → cmd desc | cmd desc
+        cmd_table.add_column(style="#e8662a", no_wrap=True)
+        cmd_table.add_column(style="grey58")
+        cmd_table.add_column(style="#e8662a", no_wrap=True)
+        cmd_table.add_column(style="grey58")
+
+        COMMANDS = [
+            ("/help", "Help & usage"),
+            ("/stats", "Session analytics"),
+            ("/model", "Switch model"),
+            ("/sessions", "Saved sessions"),
+            ("/approval", "Set approval mode"),
+            ("/save", "Save current session"),
+            ("/config", "View configuration"),
+            ("/exit", "Exit agent"),
+        ]
+
+        # pair commands → 2 per row
+        for i in range(0, len(COMMANDS), 2):
+            left = COMMANDS[i]
+            right = COMMANDS[i + 1] if i + 1 < len(COMMANDS) else ("", "")
+
+            cmd_table.add_row(
+                left[0], left[1],
+                right[0], right[1],
+            )
+
+        # ── Status footer ─────────────────────────────────────────────────────────
+        status = Text()
+        status.append("● ", style="bold spring_green3")
+        status.append("ready — type a task or /help to get started", style="dim")
+
+        # ── Render ────────────────────────────────────────────────────────────────
+        self.console.print()
+        self.console.print(banner, justify="left")
+        self.console.print(subtitle)
+        self.console.print(tagline)
+        self.console.print()
+
         self.console.print(
             Panel(
-                Text(body, style="code"),
-                title=Text(title, style="highlight"),
-                title_align="left",
-                border_style="border",
+                Group(
+                    info,
+                    Text(),
+                    section_label,
+                    Text("─" * 80, style="dim"),
+                    cmd_table,
+                    Text(),
+                    status,
+                ),
+                border_style="#e8662a",
                 box=box.ROUNDED,
                 padding=(1, 2),
+                expand=True,   # FULL WIDTH
             )
         )
+
+        self.console.print()
 
     # ── Shared block helpers ──────────────────────────────────────────────────
 
