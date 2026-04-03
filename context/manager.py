@@ -45,8 +45,8 @@ class ContextManager:
         self._messages: list[MessageItem] = []
 
         # ✅ tracking usage
-        self._latest_usage = TokenUsage()   # last LLM call
-        self._total_usage = TokenUsage()    # cumulative session usage
+        self._latest_usage = TokenUsage(0, 0, 0, 0)   # last LLM call
+        self._total_usage = TokenUsage(0, 0, 0, 0)    # cumulative session usage
 
     @property
     def message_count(self) -> int:
@@ -54,7 +54,7 @@ class ContextManager:
 
     @property
     def total_usage(self) -> TokenUsage:
-        return self._total_usage
+        return self._total_usage or TokenUsage(0, 0, 0, 0)
 
     @total_usage.setter
     def total_usage(self, value):

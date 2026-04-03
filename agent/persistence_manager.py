@@ -121,6 +121,22 @@ class PersistenceManager:
         sessions.sort(key=lambda x: x["updated_at"], reverse=True)
         return sessions
 
+    def list_checkpoints(self) -> list[dict[str, Any]]:
+        checkpoints = []
+        for file_path in self.checkpoints_dir.glob("*.json"):
+            with open(file_path, "r", encoding="utf-8") as fp:
+                data = json.load(fp)
+            checkpoints.append(
+                {
+                    "session_id": data["session_id"],
+                    "created_at": self.format_datetime(data["created_at"]),
+                    "updated_at": self.format_datetime(data["updated_at"]),
+                    "turn_count": data["turn_count"],
+                }
+            )
+        checkpoints.sort(key=lambda x: x["updated_at"], reverse=True)
+        return checkpoints
+
     def save_checkpoint(self, snapshot: SessionSnapshot) -> str:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         checkpoint_id = f"{snapshot.session_id}_{timestamp}"
@@ -130,3 +146,14 @@ class PersistenceManager:
             json.dump(snapshot.to_dict(), fp, indent=2)
         os.chmod(file_path, 0o600)
         return checkpoint_id
+
+    def load_checkpoint(self, checkpoint_id: str) -> SessionSnapshot | None:
+        file_path = self.checkpoints_dir / f"{checkpoint_id}.json"
+
+        if not file_path.exists():
+            return None
+
+        with open(file_path, "r", encoding="utf-8") as fp:
+            data = json.load(fp)
+
+        return SessionSnapshot.from_dict(data)

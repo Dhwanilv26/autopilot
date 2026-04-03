@@ -59,3 +59,4 @@
 [HOOK] {"timestamp": "2026-04-03T12:12:28.036145", "trigger": "before_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hi", "error": null, "agent_response": null}
 [HOOK] {"timestamp": "2026-04-03T12:12:35.285053", "trigger": "after_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hi", "error": null, "agent_response": "Hello! How can I assist you today?\n"}
 [HOOK] {"timestamp": "2026-04-03T17:40:10.469690", "trigger": "before_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "clear", "error": null, "agent_response": null}
+[HOOK] {"timestamp": "2026-04-03T23:07:33.238486", "trigger": "before_agent", "cwd": "/Users/dhwanil/Desktop/agentic-cli", "tool_name": null, "user_message": "hi hello how are you", "error": null, "agent_response": null}

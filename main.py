@@ -219,6 +219,15 @@ class CLI:
                     f"  • {s['session_id']} (turns: {s['turn_count']}, updated: {s['updated_at']})"
                 )
 
+        elif cmd_name == "/checkpoints":
+            persistence_manager = PersistenceManager()
+            checkpoints = persistence_manager.list_checkpoints()
+            console.print("\n[bold]Saved Checkpoints[/bold]")
+            for c in checkpoints:
+                console.print(
+                    f"  • {c['session_id']} (turns: {c['turn_count']}, updated: {c['updated_at']})"
+                )
+
         elif cmd_name == "/resume":
             if not cmd_args:
                 console.print(f"[error]Usage: /resume <session_id> [/error]")
@@ -234,10 +243,14 @@ class CLI:
                         config=self.config
                     )
                     await session.initialize()
+                    assert session.context_manager is not None
                     session.session_id = snapshot.session_id
                     session.created_at = snapshot.created_at
                     session.updated_at = snapshot.updated_at
-                    session.context_manager.total_usage = snapshot.total_usage  # type: ignore
+                    if snapshot.total_usage:
+                        session.context_manager.total_usage = snapshot.total_usage
+                    else:
+                        session.context_manager.total_usage = TokenUsage(0, 0)
 
                     assert session.context_manager is not None
 
@@ -251,7 +264,7 @@ class CLI:
                         f"[success]Resumed session: {session.session_id}[/success]"
                     )
 
-        elif cmd == "/checkpoint":
+        elif cmd_name == "/checkpoint":
             # checkpointing is saving imp info in the same session to avoid failures and rollback easily, resume is just saving the entire session to continue from where you left off even after days
             assert self.agent.session.context_manager is not None
             persistence_manager = PersistenceManager()
@@ -265,6 +278,54 @@ class CLI:
             )
             checkpoint_id = persistence_manager.save_checkpoint(session_snapshot)
             console.print(f"[success] Checkpoint created: {checkpoint_id}[/success]")
+
+        elif cmd_name == "/restore":
+            if not cmd_args:
+                console.print(f"[error]Usage: /restore <checkpoint_id> [/error]")
+            else:
+                checkpoint_id = cmd_args
+                persistence_manager = PersistenceManager()
+                snapshot = persistence_manager.load_checkpoint(cmd_args)
+                if not snapshot:
+                    console.print(f"[error]Checkpoint does not exist [/error]")
+                else:
+                    session = Session(
+                        config=self.config,
+                    )
+                    await session.initialize()
+                    assert session.context_manager is not None
+                    session.session_id = snapshot.session_id
+                    session.created_at = snapshot.created_at
+                    session.updated_at = snapshot.updated_at
+                    session._turn_count = snapshot.turn_count
+                    if snapshot.total_usage:
+                        session.context_manager.total_usage = snapshot.total_usage
+                    else:
+                        session.context_manager.total_usage = TokenUsage(0, 0)
+
+                    for msg in snapshot.messages:
+                        if msg.get("role") == "system":
+                            continue
+                        elif msg["role"] == "user":
+                            session.context_manager.add_user_message(
+                                msg.get("content", "")
+                            )
+                        elif msg["role"] == "assistant":
+                            session.context_manager.add_assistant_message(
+                                msg.get("content", ""), msg.get("tool_calls")
+                            )
+                        elif msg["role"] == "tool":
+                            session.context_manager.add_tool_result(
+                                msg.get("tool_call_id", ""), msg.get("content", "")
+                            )
+
+                    await self.agent.session.client.close()
+                    await self.agent.session.mcp_manager.shutdown()
+
+                    self.agent.session = session
+                    console.print(
+                        f"[success]Resumed session: {session.session_id}, checkpoint: {checkpoint_id}[/success]"
+                    )
 
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
