@@ -6,6 +6,8 @@ import click
 from agent.agent import Agent
 from agent.events import AgentEventType
 from agent.persistence_manager import PersistenceManager, SessionSnapshot
+from agent.session import Session
+from client.response import TokenUsage
 from config.config import ApprovalPolicy, Config
 from config.loader import load_config
 from ui.tui import TUI, get_console
@@ -121,7 +123,7 @@ class CLI:
 
         return final_response
 
-    def _handle_command(self, command: str) -> bool:
+    async def _handle_command(self, command: str) -> bool:
 
         assert self.agent and self.agent.session is not None
 
@@ -216,6 +218,37 @@ class CLI:
                 console.print(
                     f"  • {s['session_id']} (turns: {s['turn_count']}, updated: {s['updated_at']})"
                 )
+
+        elif cmd_name == "/resume":
+            if not cmd_args:
+                console.print(f"[error]Usage: /resume <session_id> [/error]")
+            else:
+                persistence_manager = PersistenceManager()
+                # snapshot -> just json file to store data, it cant perform any actions are call any functions
+                # session -> active runtime object
+                snapshot = persistence_manager.load_session(cmd_args)
+                if not snapshot:
+                    console.print(f"[error] Session does not exist for id: {cmd_args} [/error]")
+                else:
+                    session = Session(
+                        config=self.config
+                    )
+                    await session.initialize()
+                    session.created_at = snapshot.created_at
+                    session.updated_at = snapshot.updated_at
+                    session.context_manager.total_usage = snapshot.total_usage  # type: ignore
+
+                    assert session.context_manager is not None
+
+                    await session.context_manager.load_from_snapshot(snapshot)
+
+                    await self.agent.session.client.close()
+                    await self.agent.session.mcp_manager.shutdown()
+
+                    self.agent.session = session
+                    console.print(
+                        f"[success]Resumed session: {session.session_id}[/success]"
+                    )
 
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')

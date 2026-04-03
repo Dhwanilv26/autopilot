@@ -85,6 +85,17 @@ class PersistenceManager:
 
         os.chmod(file_path, 0o600)
 
+    def load_session(self, session_id: str) -> SessionSnapshot | None:
+        file_path = self.sessions_dir/f"{session_id}.json"
+
+        if not file_path.exists():
+            return None
+
+        with open(file_path, "r", encoding="utf-8") as fp:
+            data = json.load(fp)
+
+        return SessionSnapshot.from_dict(data)
+
     def list_sessions(self) -> list[dict[str, Any]]:
         sessions = []
         for file_path in self.sessions_dir.glob("*.json"):

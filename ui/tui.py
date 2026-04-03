@@ -370,7 +370,7 @@ class TUI:
     def print_welcome(self, title: str, config) -> None:
 
         # ── ASCII banner ──────────────────────────────────────────────────────────
-        raw_banner = figlet_format("AURIX", font="ansi_shadow")
+        raw_banner = figlet_format("AUTOPILOT", font="ansi_shadow")
         banner = Text(raw_banner, style="bold #e8662a")
 
         subtitle = Text(

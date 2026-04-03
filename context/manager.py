@@ -239,3 +239,46 @@ I'll continue with the REMAINING tasks only, starting from where we left off."""
 
     def clear(self) -> None:
         self._messages = []
+        self.total_usage = None  # type: ignore
+
+    async def load_from_snapshot(self, snapshot) -> None:
+        """
+        Rebuild context state from a snapshot by replaying messages.
+        """
+
+        if not snapshot or not getattr(snapshot, "messages", None):
+            return
+        # Optional: clear existing state before loading
+        self.clear()
+
+        # Restore usage safely
+        usage = getattr(snapshot, "total_usage", None)
+        if usage:
+            # handle dict → object case
+            if isinstance(usage, dict):
+                usage = TokenUsage(**usage)
+            self.total_usage = usage  # type: ignore
+
+        # Local references (micro-optimization)
+        add_user = self.add_user_message
+        add_assistant = self.add_assistant_message
+        add_tool = self.add_tool_result
+
+        for msg in snapshot.messages:
+            role = msg.get("role")
+            content = msg.get("content", "")
+
+            if role == "system":
+                continue
+
+            elif role == "user":
+                add_user(content)
+
+            elif role == "assistant":
+                add_assistant(content, msg.get("tool_calls"))
+
+            elif role == "tool":
+                add_tool(
+                    msg.get("tool_call_id", ""),
+                    content
+                )
