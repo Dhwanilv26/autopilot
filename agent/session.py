@@ -40,7 +40,11 @@ class Session:
 
         self._turn_count = 0
 
-    # these are heavy operations directly inside the constructor, also await cant be used inside a constructor, so moved them into another function, only store objects inside constructor and dont execute anything else
+    @property
+    def turn_count(self) -> int:
+        return self._turn_count
+
+        # these are heavy operations directly inside the constructor, also await cant be used inside a constructor, so moved them into another function, only store objects inside constructor and dont execute anything else
     async def initialize(self) -> None:
         await self.mcp_manager.initialize()
         self.mcp_manager.register_tools(self.tool_registry)

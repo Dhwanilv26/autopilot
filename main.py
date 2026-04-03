@@ -5,6 +5,7 @@ import click
 
 from agent.agent import Agent
 from agent.events import AgentEventType
+from agent.persistence_manager import PersistenceManager, SessionSnapshot
 from config.config import ApprovalPolicy, Config
 from config.loader import load_config
 from ui.tui import TUI, get_console
@@ -203,6 +204,20 @@ class CLI:
                 console.print(
                     f"  • {server['name']}: [{status_color}]{status}[/{status_color}] ({server['tools']} tools)"
                 )
+        elif cmd_name == "/save":
+            assert self.agent.session.context_manager is not None
+            persistence_manager = PersistenceManager()
+            session_snapshot = SessionSnapshot(
+                session_id=self.agent.session.session_id,
+                created_at=self.agent.session.created_at,
+                updated_at=self.agent.session.updated_at,
+                turn_count=self.agent.session.turn_count,
+                messages=self.agent.session.context_manager.get_messages()
+            )
+
+            persistence_manager.save_session(session_snapshot)
+
+            console.print(f"[success] Session saved: {self.agent.session.session_id} [/success]")
 
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
