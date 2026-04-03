@@ -1,6 +1,7 @@
 import json
 from typing import Any
 
+from agent.persistence_manager import PersistenceManager
 from client.llm_client import LLMClient
 from config.config import Config
 from context.compaction import ChatCompactor
@@ -34,7 +35,8 @@ class Session:
             self.config.approval, self.config.cwd, confirmation_callback=confirmation_callback)
         self.loop_detector = LoopDetector()
         self.hook_system = HookSystem(self.config)
-        self.session_id = str(uuid.uuid4())
+        pm = PersistenceManager()
+        self.session_id = pm.generate_session_id()
         self.created_at = datetime.now()
         self.updated_at = datetime.now()
 
@@ -86,11 +88,16 @@ class Session:
 
         return self._turn_count
 
+    def format_datetime(self, dt_str: str) -> str:
+        dt = datetime.fromisoformat(dt_str)
+        hour = dt.strftime("%I").lstrip("0")
+        return f"{hour}:{dt.strftime('%M %p, %d %B %Y')}"
+
     def get_stats(self) -> dict[str, Any]:
         assert self.context_manager is not None
         return {
             "session_id": self.session_id,
-            "created_at": self.created_at.isoformat(),
+            "created_at": self.format_datetime(self.created_at.isoformat()),
             "turn_count": self._turn_count,
             "message_count": self.context_manager.message_count,
             "token_usage": self.context_manager.total_usage.pretty(),
