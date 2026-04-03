@@ -251,6 +251,21 @@ class CLI:
                         f"[success]Resumed session: {session.session_id}[/success]"
                     )
 
+        elif cmd == "/checkpoint":
+            # checkpointing is saving imp info in the same session to avoid failures and rollback easily, resume is just saving the entire session to continue from where you left off even after days
+            assert self.agent.session.context_manager is not None
+            persistence_manager = PersistenceManager()
+            session_snapshot = SessionSnapshot(
+                session_id=self.agent.session.session_id,
+                created_at=self.agent.session.created_at,
+                updated_at=self.agent.session.updated_at,
+                turn_count=self.agent.session.turn_count,
+                messages=self.agent.session.context_manager.get_messages(),
+                total_usage=self.agent.session.context_manager.total_usage
+            )
+            checkpoint_id = persistence_manager.save_checkpoint(session_snapshot)
+            console.print(f"[success] Checkpoint created: {checkpoint_id}[/success]")
+
         else:
             console.print(f'[error] Unknown command" {cmd_name} [/error]')
 
