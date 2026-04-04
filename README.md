@@ -158,11 +158,8 @@ Built using Rich + prompt_toolkit:
 
 ## Tech Stack
 
-* Python
-* OpenRouter / Local Models
-* Click, prompt_toolkit
-* Rich
-* Fully custom agent architecture
+* Pure Python without Langchain (completely built from scratch!)
+
 
 ---
 
@@ -230,4 +227,4 @@ BASE_URL=https://openrouter.ai/api/v1
 BASE_URL=http://localhost:11434/v1
 ```
 ## Run
-Just type 'autopilot' in your terminal and see the magic unfold.
+Just type `autopilot` in your terminal and see the magic unfold.
