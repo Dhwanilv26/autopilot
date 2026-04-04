@@ -1,4 +1,5 @@
 from tools.base import Tool
+from tools.builtin.apply_patch import ApplyPatchTool
 from tools.builtin.glob import GlobTool
 from tools.builtin.grep import GrepTool
 from tools.builtin.read_file import ReadFileTool
@@ -21,7 +22,8 @@ _all_ = [
     "WebSearchTool",
     "WebFetchTool",
     "TodosTool",
-    "MemoryTool"
+    "MemoryTool",
+    "ApplyPatchTool"
 ]
 
 
@@ -37,5 +39,6 @@ def get_all_builtin_tools() -> list[type[Tool]]:
         WebSearchTool,
         WebFetchTool,
         TodosTool,
-        MemoryTool
+        MemoryTool,
+        ApplyPatchTool
     ]
