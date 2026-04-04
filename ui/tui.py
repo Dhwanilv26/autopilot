@@ -218,6 +218,7 @@ class TUI:
         "glob":       ["path", "pattern"],
         "todos":      ["id", "action", "content"],
         "memory":     ["action", "key", "value"],
+        "apply_patch": ["dry_run", "patch"]
     }
 
     def ordered_arguments(self, tool_name: str, args: dict[str, Any]) -> list[tuple]:
@@ -266,6 +267,26 @@ class TUI:
         arguments: dict[str, Any],
     ) -> None:
         self._tool_args_by_call_id[call_id] = arguments
+
+        if name == "apply_patch":
+            patch = arguments.get("patch", "")
+            dry_run = arguments.get("dry_run", False)
+
+            header = "[bold yellow]APPLY PATCH[/bold yellow]"
+            if dry_run:
+                header += " [dim](dry run)[/dim]"
+
+            panel = Panel(
+                Syntax(patch, "diff", theme="monokai", word_wrap=True),
+                title=header,
+                border_style="yellow",
+                box=box.ROUNDED,
+                padding=(1, 2),
+            )
+
+            self.console.print()
+            self.console.print(panel)
+            return
 
         border_style = f"tool.{tool_kind}" if tool_kind else "tool"
         icon = _tool_icon(name)
@@ -832,6 +853,24 @@ class TUI:
                         padding=(1, 2),
                     )
                 )
+
+        elif name == "apply_patch":
+            color = "green" if success else "red"
+            status = "SUCCESS" if success else "FAILED"
+
+            content = output if output else error or ""
+
+            panel = Panel(
+                Text(content),
+                title=f"[bold {color}]APPLY PATCH {status}[/bold {color}]",
+                border_style=color,
+                box=box.ROUNDED,
+                padding=(1, 2),
+            )
+
+            self.console.print()
+            self.console.print(panel)
+            return
 
         # ── fallback ──────────────────────────────────────────────────────────
         else:
