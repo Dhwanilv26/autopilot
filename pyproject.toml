@@ -5,38 +5,53 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autopilot"
-version = "0.1.0"
-description = "Open-source terminal-based AI coding agent built from scratch"
+version = "1.0.0"
+description = "Open source terminal-based AI coding agent built from scratch"
 readme = "README.md"
 requires-python = ">=3.10"
 
-authors = [
-    { name = "Dhwanil Vaidya" }
-]
+authors = [{ name = "Dhwanil Vaidya" }]
 
-license = { text = "MIT" }   
+license = "MIT"
 
 dependencies = [
+    # CLI & UI
     "click>=8.3.1",
     "prompt_toolkit>=3.0.52",
     "rich>=14.3.2",
     "pyfiglet>=1.0.4",
 
+    # LLM & API
     "openai>=2.17.0",
     "tiktoken>=0.12.0",
     "httpx>=0.28.1",
 
+    # Config
     "python-dotenv>=1.2.2",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
+    "tomli>=2.0.1",
 
+    # Web tools
     "requests>=2.32.5",
     "beautifulsoup4>=4.14.3",
     "lxml>=6.0.2",
+    "ddgs>=9.11.4",
 
+    # MCP
     "fastmcp>=3.1.1",
-    "mcp>=1.26.0"
+    "mcp>=1.26.0",
+
+    # Optional server
+    "uvicorn>=0.42.0",
 ]
 
+
 [project.scripts]
-autopilot = "main:main"
+autopilot = "autopilot.main:main"
+
+
+# Package discovery (IMPORTANT)
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["autopilot*"]

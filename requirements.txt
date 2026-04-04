@@ -1,39 +1,41 @@
 # =========================
 # CLI & Terminal UI
 # =========================
-click==8.3.1                 # CLI framework (commands, options)
-prompt_toolkit==3.0.52      # Interactive input (history, arrow keys, suggestions)
-rich==14.3.2                # Terminal UI rendering (panels, colors, tables)
-pyfiglet==1.0.4             # ASCII banners
+click==8.3.1
+prompt_toolkit==3.0.52
+rich==14.3.2
+pyfiglet==1.0.4
 
 # =========================
-# LLM & Token Handling
+# LLM & API
 # =========================
-openai==2.17.0              # LLM client (OpenRouter-compatible)
-tiktoken==0.12.0            # Token counting for context management
-httpx==0.28.1               # Async HTTP client (used internally + for APIs)
+openai==2.17.0
+tiktoken==0.12.0
+httpx==0.28.1
 
 # =========================
-# Configuration & Settings
+# Config & Validation
 # =========================
-python-dotenv==1.2.2        # Load environment variables (.env)
-pydantic==2.12.5            # Data validation & schemas
-pydantic-settings==2.13.1   # Config management via env/settings
+python-dotenv==1.2.2
+pydantic==2.12.5
+pydantic-settings==2.13.1
+tomli==2.0.1
 
 # =========================
-# Web Tools (Search + Fetch)
+# Web Tools
 # =========================
-requests==2.32.5            # HTTP requests for web fetch
-beautifulsoup4==4.14.3      # HTML parsing
-lxml==6.0.2                 # Fast HTML/XML parser backend
+requests==2.32.5
+beautifulsoup4==4.14.3
+lxml==6.0.2
+ddgs==9.11.4
 
 # =========================
-# MCP (Model Context Protocol)
+# MCP (Extensibility)
 # =========================
-fastmcp==3.1.1              # MCP server/client utilities
-mcp==1.26.0                 # Core MCP protocol support
+fastmcp==3.1.1
+mcp==1.26.0
 
 # =========================
-# Server / Streaming (Optional)
+# Optional (server / streaming)
 # =========================
-uvicorn==0.42.0             # ASGI server (used if running MCP/web services)
+uvicorn==0.42.0
