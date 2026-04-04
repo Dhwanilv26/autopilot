@@ -1,4 +1,4 @@
-# Autopilot — AI Coding Agent (Built from First Principles)
+# Autopilot — AI Coding Agent (Built from Scratch)
 
 Autopilot is a terminal-based AI agent that can **understand entire codebases, execute complex multi-step tasks, manage long-running workflows, and operate autonomously within controlled limits**.
 
