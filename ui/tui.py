@@ -380,7 +380,7 @@ class TUI:
         )
 
         tagline = Text(
-            "completely customizable · local + API models · executes real tasks",
+            "completely customizable · local + cloud models · executes real tasks",
             style="#555552",
             justify="left",
         )
