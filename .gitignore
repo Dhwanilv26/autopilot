@@ -17,3 +17,7 @@ __pycache__/
 *.pyc
 dist/
 autopilot_agent.egg-info/
+
+flow.md
+sample_schema.txt
+sample_todos.md
