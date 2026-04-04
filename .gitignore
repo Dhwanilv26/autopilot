@@ -1,5 +1,16 @@
-/.venv
+# Python build artifacts
+autopilot.egg-info/
+
+# Logs
+hook.log
+
+# App config (local)
+.autopilot/
+
+# Virtual env
+.venv/
+/env
+
+# Python cache
 __pycache__/
 *.pyc
-.env
-.autopilot_history
