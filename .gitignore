@@ -15,3 +15,5 @@ hook.log
 # Python cache
 __pycache__/
 *.pyc
+dist/
+autopilot_agent.egg-info/

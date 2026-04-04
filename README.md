@@ -206,7 +206,7 @@ The agent:
 ### Install
 
 ```bash
-pip install autopilot
+pip install autopilot-agent
 ```
 
 Or install directly from PyPI:

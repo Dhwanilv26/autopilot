@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "autopilot"
+name = "autopilot-agent"
 version = "1.0.0"
 description = "Open source terminal-based AI coding agent built from scratch"
 readme = "README.md"
