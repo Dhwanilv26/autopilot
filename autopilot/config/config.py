@@ -140,6 +140,9 @@ class Config (BaseModel):
         if not self.api_key:
             errors.append("NO API_KEY FOUND. Set API_KEY ENV Variable")
 
+        if not self.base_url:
+            errors.append("NO BASE_URL FOUND. Set BASE_URL ENV Variable")
+
         if not self.cwd.exists():
             errors.append(f"working directory does not exist: {self.cwd}")
 

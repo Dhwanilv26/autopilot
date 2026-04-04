@@ -3,6 +3,10 @@ from pathlib import Path
 import sys
 import click
 
+from dotenv import load_dotenv
+from pathlib import Path
+load_dotenv(Path.cwd() / ".env")
+
 from autopilot.agent.agent import Agent
 from autopilot.agent.events import AgentEventType
 from autopilot.agent.persistence_manager import PersistenceManager, SessionSnapshot
@@ -12,14 +16,12 @@ from autopilot.config.config import ApprovalPolicy, Config
 from autopilot.config.loader import load_config
 from autopilot.ui.tui import TUI, get_console
 
-from dotenv import load_dotenv
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
 
-load_dotenv()
 
 console = get_console()
 
