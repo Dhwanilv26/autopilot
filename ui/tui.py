@@ -23,6 +23,8 @@ from utils.text import truncate_text
 from config.config import Config
 from pyfiglet import figlet_format
 
+import textwrap
+
 
 AGENT_THEME = Theme(
     {
@@ -371,18 +373,18 @@ class TUI:
 
         # ── ASCII banner ──────────────────────────────────────────────────────────
         raw_banner = figlet_format("AUTOPILOT", font="ansi_shadow")
-        banner = Text(raw_banner, style="bold #e8662a")
+        banner = Text(raw_banner, style="bold #e8662a", justify="center")
 
         subtitle = Text(
             "MULTI-AGENT AI CODING SYSTEM",
             style="bold #888780",
-            justify="left",
+            justify="center",
         )
 
         tagline = Text(
             "completely customizable · local + cloud models · executes real tasks",
             style="#555552",
-            justify="left",
+            justify="center",
         )
 
         # ── Info rows ─────────────────────────────────────────────────────────────
@@ -404,7 +406,7 @@ class TUI:
         info.append(f"{approval_value}\n", style="grey93")
 
         # ── Commands (GRID STYLE: 2 per row) ──────────────────────────────────────
-        section_label = Text("commands", style="dim")
+        section_label = Text("Commands", style="dim", justify="center")
 
         cmd_table = Table.grid(expand=True)
 
@@ -416,13 +418,25 @@ class TUI:
 
         COMMANDS = [
             ("/help", "Help & usage"),
+            ("/clear", "Clear conversation"),
             ("/stats", "Session analytics"),
+
             ("/model", "Switch model"),
-            ("/sessions", "Saved sessions"),
             ("/approval", "Set approval mode"),
-            ("/save", "Save current session"),
             ("/config", "View configuration"),
+
+            ("/history", "Show command history"),
+            ("/history-clear", "Clear command history"),
+
+            ("/save", "Save session"),
+            ("/sessions", "List sessions"),
+            ("/resume", "Resume session"),
+
+            ("/tools", "List tools"),
+            ("/mcp", "MCP server status"),
+
             ("/exit", "Exit agent"),
+
         ]
 
         # pair commands → 2 per row
@@ -442,9 +456,9 @@ class TUI:
 
         # ── Render ────────────────────────────────────────────────────────────────
         self.console.print()
-        self.console.print(banner, justify="left")
-        self.console.print(subtitle)
-        self.console.print(tagline)
+        self.console.print(banner, justify="center")
+        self.console.print(subtitle, justify="center")
+        self.console.print(tagline, justify="center")
         self.console.print()
 
         self.console.print(
@@ -453,7 +467,7 @@ class TUI:
                     info,
                     Text(),
                     section_label,
-                    Text("─" * 80, style="dim"),
+                    Text("─" * 125, style="dim"),
                     cmd_table,
                     Text(),
                     status,
@@ -922,32 +936,64 @@ class TUI:
         return choice.lower() in {"y", "yes"}
 
     def show_help(self) -> None:
-        help_text = """
-## Commands
+        help_text = textwrap.dedent("""
+        ### Setup
 
-- `/help` — Display this help menu  
-- `/exit` or `/quit` — Exit the agent  
-- `/clear` — Clear conversation history  
-- `/config` — View current configuration  
-- `/model <name>` — Switch model  
-- `/approval <mode>` — Set approval mode  
-- `/stats` — View session statistics  
-- `/tools` — List available tools  
-- `/mcp` — Check MCP server status  
-- `/save` — Save current session  
-- `/checkpoint [name]` — Create a checkpoint  
-- `/checkpoints` — List all checkpoints  
-- `/restore <checkpoint_id>` — Restore a checkpoint  
-- `/sessions` — List saved sessions  
-- `/resume <session_id>` — Resume a session  
+        - Set your API key and base URL (e.g. OpenRouter):
+        OPENROUTER_API_KEY=your_key  
+        BASE_URL=https://openrouter.ai/api/v1  
 
-## Tips
+        - Or use a local model (Ollama / LM Studio):
+        BASE_URL=http://localhost:11434/v1  
 
-- Type naturally to chat with the agent  
-- The agent can read, write, and execute code  
-- Some actions may require approval (configurable)  
-"""
-        self.console.print(Markdown(help_text))
+        - Select a model:
+        /model <name>  
+                                    
+        ### Commands
+
+        ### Core Interaction
+        - /help — Display this help menu  
+        - /exit or /quit — Exit the agent  
+        - /clear — Clear current conversation 
+
+        ### Insights
+        - /stats — View session statistics  
+        - /tools — List available tools  
+        - /mcp — Check MCP server status 
+
+        ### Configuration
+        - /config — View current configuration  
+        - /model <name> — Switch model  
+        - /approval <mode> — Set approval mode  
+
+        ### Session & Persistence
+        - /save — Save current session  
+        - /sessions — List saved sessions  
+        - /resume <session_id> — Resume a session  
+        - /checkpoint — Create a checkpoint  
+        - /checkpoints — List all checkpoints  
+        - /restore <checkpoint_id> — Restore a checkpoint  
+
+        ### Command History (NEW)
+        - /history — Show recent commands  
+        - /history-clear — Delete all command history  
+        - /history-trim — Keep only the latest 25 commands  
+
+        ### Automatic Behavior
+        - History is saved across runs  
+        - Only last 25 commands are kept automatically  
+        - Use ↑ ↓ arrow keys to navigate previous commands  
+        - Suggestions appear as you type  
+
+        ### Tips
+        - Use ↑ / ↓ to reuse previous commands quickly  
+        - Use /history-clear if suggestions get messy  
+        - The agent can read, write, and execute code  
+        - The agent can be fully customized as per your needs  
+        - Some actions may require approval  
+        """)
+
+        self.console.print(Markdown(help_text.strip()))
 
     def render_stats_table(self, stats: dict[str, Any]):
         table = Table(title=" Session Statistics", show_lines=True)
