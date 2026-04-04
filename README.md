@@ -138,17 +138,20 @@ Built using Rich + prompt_toolkit:
 * Structured tool output
 * Interactive commands
 
+## Currently Supported Commands
 
-/help
-/config
-/tools
-/mcp
-/stats
-/save
-/resume
-/checkpoint
-/restore
-/history
+`/help`
+`/config`
+`/model`
+`/tools`
+`/mcp`
+`/stats`
+`/save`
+`/resume`
+`/checkpoint`
+`/restore`
+`/history`
+`/exit`
 
 
 ---
@@ -201,7 +204,7 @@ The agent:
 
 ---
 
-## Setup (Modern Way ⚡)
+## Setup
 
 ### Install
 
