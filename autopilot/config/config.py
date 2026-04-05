@@ -134,17 +134,47 @@ class Config (BaseModel):
     @temperature.setter
     def temperature(self, value: float) -> None:
         self.model.temperature = value
+    
+    def is_local(self) -> bool:
+        if not self.base_url:
+            return False
+        return "localhost" in self.base_url or "127.0.0.1" in self.base_url
 
     def get_validation_errors(self) -> list[str]:
         errors: list[str] = []
-        if not self.api_key:
-            errors.append("NO API_KEY FOUND. Set API_KEY ENV Variable")
 
+        # BASE_URL is always required
         if not self.base_url:
-            errors.append("NO BASE_URL FOUND. Set BASE_URL ENV Variable")
+            errors.append(
+                "NO BASE_URL FOUND.\n\n"
+                "Setup Instructions:\n"
+                "1) Create a `.env` file in your project folder.\n\n"
+                "For OpenRouter / OpenAI:\n"
+                "  API_KEY=your_api_key_here\n"
+                "  BASE_URL=https://openrouter.ai/api/v1\n\n"
+                "For Local Models (Ollama):\n"
+                "  BASE_URL=http://localhost:11434/v1\n"
+                "Note: No API_KEY required in local models"
+            )
+
+        # API_KEY only required for remote models
+        if self.base_url and not self.is_local() and not self.api_key:
+            errors.append(
+                "NO API_KEY FOUND.\n\n"
+                "This is required for remote models.\n\n"
+                "Add to your `.env` file:\n"
+                "  API_KEY=your_api_key_here\n\n"
+                "OR set it manually:\n"
+                "Mac/Linux:\n"
+                "  export API_KEY=your_api_key_here\n\n"
+                "Windows (PowerShell):\n"
+                "  $env:API_KEY=\"your_api_key_here\"\n\n"
+                "Windows (CMD):\n"
+                "  set API_KEY=your_api_key_here\n"
+            )
 
         if not self.cwd.exists():
-            errors.append(f"working directory does not exist: {self.cwd}")
+            errors.append(f"Working directory does not exist: {self.cwd}")
 
         return errors
 

@@ -1,0 +1,173 @@
+# =========================================================
+# AUTOPILOT CONFIGURATION FILE
+# =========================================================
+# Place this file at:
+# 👉 autopilot/config.toml
+#
+# Environment variables (.env) are still required for:
+# - API_KEY (remote models only)
+# - BASE_URL
+#
+# For more customization, refer to:
+# 👉 autopilot/config/config.py in the GitHub repo
+# =========================================================
+
+
+# =========================================================
+# MODEL CONFIGURATION
+# =========================================================
+[model]
+
+# Model name (depends on provider)
+# Examples:
+# - openrouter/free
+# - openai/gpt-4o
+# - llama3 (for local)
+name = "openrouter/free"
+
+# Controls creativity (0 = deterministic, 2 = very random)
+temperature = 1.0
+
+# Max context window (tokens)
+context_window = 256000
+
+
+# =========================================================
+# SHELL ENVIRONMENT POLICY
+# =========================================================
+[shell_environment]
+
+# Whether to ignore default excludes like *KEY*, *TOKEN*
+ignore_default_excludes = false
+
+# Patterns to exclude from being passed to LLM
+exclude_patterns = ["*KEY*", "*TOKEN*", "*SECRET*"]
+
+# Override environment variables
+# Example:
+# set_vars = { NODE_ENV = "development" }
+set_vars = {}
+
+
+# =========================================================
+# AGENT SETTINGS
+# =========================================================
+
+# Max turns the agent can take
+max_turns = 100
+
+# Max tokens allowed in tool output
+max_tool_output_tokens = 50000
+
+# Enable debug logs
+debug = false
+
+
+# =========================================================
+# APPROVAL POLICY
+# =========================================================
+# Options:
+# - "on-request"
+# - "on-failure"
+# - "auto"
+# - "auto-edit"
+# - "never"
+# - "yolo"
+approval = "on-request"
+
+
+# =========================================================
+# HOOKS
+# =========================================================
+
+# Enable/disable hooks globally
+hooks_enabled = true
+
+# Hooks list
+[[hooks]]
+name = "auto_commit"
+trigger = "after_agent"   # before_agent | after_agent | before_tool | after_tool | on_error
+command = "git add . && git commit -m 'autopilot changes'"
+timeout_sec = 30
+enabled = true
+
+
+[[hooks]]
+name = "run_tests"
+trigger = "after_agent"
+command = "python3 -m pytest"
+timeout_sec = 60
+enabled = true
+
+
+# =========================================================
+# MCP SERVERS
+# =========================================================
+# You can define multiple MCP servers using a dictionary
+
+[mcp_servers.my_local_server]
+
+# Enable MCP
+enabled = true
+
+# Startup timeout
+startup_timeout_sec = 10
+
+# Option 1: STDIO (local server)
+command = "python3"
+args = ["mcp_server.py"]
+env = {}
+# cwd = "/absolute/path/to/server"  # optional
+
+# IMPORTANT:
+# Either use (command + args) OR (url), not both
+
+
+# Example: HTTP MCP Server
+[mcp_servers.remote_server]
+enabled = true
+startup_timeout_sec = 10
+url = "http://localhost:8000"
+
+
+# =========================================================
+# TOOL CONTROL
+# =========================================================
+
+# Restrict tools (optional)
+# If set, only these tools will be available
+allowed_tools = []
+
+
+# =========================================================
+# INSTRUCTIONS
+# =========================================================
+
+# System-level instructions for agent
+developer_instructions = """
+You are a senior software engineer.
+Always write clean, production-ready code.
+"""
+
+# User-level instructions
+user_instructions = """
+Help me solve problems step by step.
+"""
+
+
+# =========================================================
+# NOTES
+# =========================================================
+# - API_KEY and BASE_URL must be set via `.env` file or environment variables
+#
+# Example `.env`:
+# API_KEY=your_api_key_here
+# BASE_URL=https://openrouter.ai/api/v1
+#
+# For local models (Ollama):
+# BASE_URL=http://localhost:11434/v1
+# (No API_KEY required)
+#
+# For advanced options, refer to:
+# 👉 autopilot/config/config.py
+# =========================================================
