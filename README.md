@@ -53,7 +53,7 @@ Install from PyPI:
 pip install autopilot-agent
 ```
 
-PyPI page: https://pypi.org/project/autopilot/
+PyPI page: https://pypi.org/project/autopilot-agent/
 
 ---
 
