@@ -15,7 +15,7 @@
 
 ## System Architecture
 
-![System Architecture](./system_architecture.png)
+![System Architecture](https://raw.githubusercontent.com/Dhwanilv26/autopilot/main/system_architecture.png)
 
 The architecture is organised into seven layers that communicate through well-defined data, control, and context flows:
 
